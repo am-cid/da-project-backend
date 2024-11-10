@@ -23,3 +23,19 @@ Data Analytics Project (Backend)
     ```bash
     uv sync
     ```
+
+3. Run server
+    ```bash
+    fastapi dev da-project-be/app
+    ```
+
+---
+*sample request*
+```bash
+curl -X 'GET' \
+  'localhost:8000/' \
+  -H 'accept: application/json'
+```
+should return
+```
+{"hello":"world"}
