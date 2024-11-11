@@ -26,7 +26,7 @@ Data Analytics Project (Backend)
 
 3. Run server
     ```bash
-    fastapi dev da-project-be/app
+    fastapi dev da-project-backend/app
     ```
 
 ---
