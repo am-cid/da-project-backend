@@ -36,43 +36,45 @@ NOTE:
 """
 
 
-## SOURCE MODELS
-class SourceFields(SQLModel):
-    source_id: int | None = Field(default=None, primary_key=True)
-    raw_csv: str = Field(default="")
-
-
-class Source(SourceFields, table=True):
-    reports: List["Report"] = Relationship(back_populates="source", cascade_delete=True)
-    columns: List["Column"] = Relationship(back_populates="source", cascade_delete=True)
-
-
 ## REPORT MODELS
 class ReportFields(SQLModel):
     report_id: int | None = Field(default=None, primary_key=True)
-    text: str = Field(default="")
-    source_id: int = Field(foreign_key="source.source_id", ondelete="CASCADE")
+    raw_csv: str = Field(default="")
 
 
 class Report(ReportFields, table=True):
-    source: Source = Relationship(back_populates="reports")
-    remarks: List["Remark"] = Relationship(back_populates="report", cascade_delete=True)
+    pages: List["Page"] = Relationship(back_populates="report", cascade_delete=True)
+    columns: List["Column"] = Relationship(back_populates="report", cascade_delete=True)
 
 
-class ReportResponse(BaseModel):
+## PAGE MODELS
+
+
+class PageFields(SQLModel):
+    page_id: int | None = Field(default=None, primary_key=True)
+    report_id: int = Field(foreign_key="report.report_id", ondelete="CASCADE")
+    page_overview: str = Field(default="")
+
+
+class Page(PageFields, table=True):
+    report: Report = Relationship(back_populates="pages")
+    comments: List["Comment"] = Relationship(back_populates="page", cascade_delete=True)
+
+
+class PageResponse(BaseModel):
     id: int
-    report: str
+    overview: str
 
     @staticmethod
-    def from_report(report: Report) -> "ReportResponse":
-        return ReportResponse(
-            id=report.report_id if report.report_id is not None else 0,
-            report=report.text,
+    def from_page(page: Page) -> "PageResponse":
+        return PageResponse(
+            id=page.page_id if page.page_id is not None else 0,
+            overview=page.page_overview,
         )
 
     @staticmethod
-    def from_reports(reports: Sequence[Report]) -> "List[ReportResponse]":
-        return [ReportResponse.from_report(report) for report in reports]
+    def from_pages(pages: Sequence[Page]) -> "List[PageResponse]":
+        return [PageResponse.from_page(page) for page in pages]
 
 
 ## COLUMN MODELS
@@ -84,19 +86,19 @@ class ColumnDataType(enum.StrEnum):
 
 class ColumnFields(SQLModel):
     column_id: int | None = Field(default=None, primary_key=True)
-    header: str = Field(default="")
+    report_id: int = Field(foreign_key="report.report_id", ondelete="CASCADE")
+    label: str = Field(default="")
     rows: str | None = Field(default=None)
     dtype: ColumnDataType = Field(sa_column=Col(Enum(ColumnDataType)))
-    source_id: int = Field(foreign_key="source.source_id", ondelete="CASCADE")
 
 
 class Column(ColumnFields, table=True):
-    source: Source = Relationship(back_populates="columns")
+    report: Report = Relationship(back_populates="columns")
 
 
 class ColumnResponse(BaseModel):
     id: int
-    header: str
+    label: str
     rows: list[str]
     row_type: str
 
@@ -104,7 +106,7 @@ class ColumnResponse(BaseModel):
     def from_column(column: Column) -> "ColumnResponse":
         return ColumnResponse(
             id=column.column_id if column.column_id is not None else 0,
-            header=column.header,
+            label=column.label,
             rows=column.rows.split(",") if column.rows else [],
             row_type=column.dtype,
         )
@@ -114,9 +116,9 @@ class ColumnResponse(BaseModel):
         return [ColumnResponse.from_column(column) for column in columns]
 
 
-## REMARK MODELS
-class RemarkFields(SQLModel):
-    remark: str = Field(default="")
+## COMMENT MODELS
+class CommentFields(SQLModel):
+    comment: str = Field(default="")
     created_at: datetime = Field(
         sa_column=Col(
             TIMESTAMP(timezone=True),
@@ -132,54 +134,54 @@ class RemarkFields(SQLModel):
             server_onupdate=text("CURRENT_TIMESTAMP"),
         )
     )
-    report_id: int = Field(foreign_key="report.report_id", ondelete="CASCADE")
+    page_id: int = Field(foreign_key="page.page_id", ondelete="CASCADE")
 
-    def to_remark(self) -> "Remark":
+    def to_comment(self) -> "Comment":
         valid = self.model_validate(self)
-        return Remark(
-            remark=valid.remark,
+        return Comment(
+            comment=valid.comment,
             created_at=valid.created_at,
             updated_at=valid.updated_at,
-            report_id=valid.report_id,
+            page_id=valid.page_id,
         )
 
 
-class Remark(RemarkFields, table=True):
-    remark_id: int | None = Field(default=None, primary_key=True)
-    report: Report = Relationship(back_populates="remarks")
+class Comment(CommentFields, table=True):
+    comment_id: int | None = Field(default=None, primary_key=True)
+    page: Page = Relationship(back_populates="comments")
 
 
-class RemarkResponse(BaseModel):
+class CommentResponse(BaseModel):
     id: int
-    remark: str
+    comment: str
     created_at: datetime
     updated_at: datetime
 
     @staticmethod
-    def from_remark(remark: Remark) -> "RemarkResponse":
-        return RemarkResponse(
-            id=remark.remark_id if remark.remark_id is not None else 0,
-            remark=remark.remark,
+    def from_comment(remark: Comment) -> "CommentResponse":
+        return CommentResponse(
+            id=remark.comment_id if remark.comment_id is not None else 0,
+            comment=remark.comment,
             created_at=remark.created_at,
             updated_at=remark.updated_at,
         )
 
     @staticmethod
-    def from_remarks(remarks: Sequence[Remark]) -> "List[RemarkResponse]":
-        return [RemarkResponse.from_remark(column) for column in remarks]
+    def from_comments(remarks: Sequence[Comment]) -> "List[CommentResponse]":
+        return [CommentResponse.from_comment(column) for column in remarks]
 
     @staticmethod
-    def from_report(report: Report) -> "List[RemarkResponse]":
-        return RemarkResponse.from_remarks(report.remarks)
+    def from_report(report: Page) -> "List[CommentResponse]":
+        return CommentResponse.from_comments(report.comments)
 
 
-class RemarkCreate(BaseModel):
+class CommentCreate(BaseModel):
     remark: str
 
-    def validate_to_remark(self, report_id: int) -> Remark:
-        return RemarkFields(
-            remark=self.remark,
-            report_id=report_id,
+    def validate_to_comment(self, report_id: int) -> Comment:
+        return CommentFields(
+            comment=self.remark,
+            page_id=report_id,
             created_at=datetime.now(),
             updated_at=datetime.now(),
-        ).to_remark()
+        ).to_comment()
