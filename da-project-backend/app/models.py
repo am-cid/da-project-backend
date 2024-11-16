@@ -171,3 +171,15 @@ class RemarkResponse(BaseModel):
     @staticmethod
     def from_report(report: Report) -> "List[RemarkResponse]":
         return RemarkResponse.from_remarks(report.remarks)
+
+
+class RemarkCreate(BaseModel):
+    remark: str
+
+    def validate_to_remark(self, report_id: int) -> Remark:
+        return RemarkFields(
+            remark=self.remark,
+            report_id=report_id,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        ).to_remark()
