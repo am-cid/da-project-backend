@@ -112,7 +112,6 @@ class Column(ColumnFields, table=True):
 
 
 class ColumnResponse(BaseModel):
-    id: int
     label: str
     rows: list[str]
     row_type: str
@@ -120,7 +119,6 @@ class ColumnResponse(BaseModel):
     @staticmethod
     def from_column(column: Column) -> "ColumnResponse":
         return ColumnResponse(
-            id=column.column_id if column.column_id is not None else 0,
             label=column.label,
             rows=column.rows.split(",") if column.rows else [],
             row_type=column.dtype,
