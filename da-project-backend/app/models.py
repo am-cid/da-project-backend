@@ -49,12 +49,20 @@ class Report(ReportFields, table=True):
 
 
 ## PAGE MODELS
+class PageChartType(enum.StrEnum):
+    BAR_CHART = "BAR_CHART"
+    PIE_CHART = "PIE_CHART"
+    TREND_CHART = "TREND_CHART"
+    SCATTER_PLOT = "SCATTER_PLOT"
 
 
 class PageFields(SQLModel):
     page_id: int | None = Field(default=None, primary_key=True)
     report_id: int = Field(foreign_key="report.report_id", ondelete="CASCADE")
+    page_name: str = Field(default="")
     page_overview: str = Field(default="")
+    chart_type: PageChartType = Field(sa_column=Col(Enum(PageChartType)))
+    labels: str = Field(default="")
 
 
 class Page(PageFields, table=True):
@@ -64,13 +72,19 @@ class Page(PageFields, table=True):
 
 class PageResponse(BaseModel):
     id: int
+    name: str
     overview: str
+    chart_type: str
+    labels: list[str]
 
     @staticmethod
     def from_page(page: Page) -> "PageResponse":
         return PageResponse(
             id=page.page_id if page.page_id is not None else 0,
+            name=page.page_name,
             overview=page.page_overview,
+            chart_type=page.chart_type,
+            labels=page.labels.split(","),
         )
 
     @staticmethod
