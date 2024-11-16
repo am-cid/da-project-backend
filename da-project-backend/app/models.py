@@ -94,8 +94,8 @@ class PageResponse(BaseModel):
 
 ## COLUMN MODELS
 class ColumnDataType(enum.StrEnum):
-    NUMBER = "NUMBER"
     BOOLEAN = "BOOLEAN"
+    NUMBER = "NUMBER"
     STRING = "STRING"
 
 
@@ -104,7 +104,9 @@ class ColumnFields(SQLModel):
     report_id: int = Field(foreign_key="report.report_id", ondelete="CASCADE")
     label: str = Field(default="")
     rows: str | None = Field(default=None)
-    dtype: ColumnDataType = Field(sa_column=Col(Enum(ColumnDataType)))
+    dtype: ColumnDataType = Field(
+        default=ColumnDataType.STRING, sa_column=Col(Enum(ColumnDataType))
+    )
 
 
 class Column(ColumnFields, table=True):
