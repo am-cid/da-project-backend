@@ -1,10 +1,13 @@
 from typing import Annotated, List
 
 from fastapi import FastAPI, HTTPException, Query
-from sqlmodel import select
+from sqlmodel import col, select
 
 from .database import SessionDep
 from .models import (
+    Column,
+    ColumnResponse,
+    ColumnDataType,
     Comment,
     CommentCreate,
     CommentResponse,
@@ -60,3 +63,33 @@ def post_page_comment(
     session.commit()
     session.refresh(db_comment)
     return CommentResponse.from_comment(db_comment)
+
+
+@app.get("/api/report-page/{page_id}/columns")
+def get_report_page_columns(
+    page_id: int,
+    session: SessionDep,
+    labels: str | None = None,
+    dtype: ColumnDataType | None = None,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> List[ColumnResponse]:
+    statement = (
+        select(Column.label, Column.dtype, Column.rows)
+        .select_from(Page, Column)
+        .where(Page.page_id == page_id)
+        .where(Column.report_id == Page.report_id)
+    )
+    if labels:
+        statement = statement.where(col(Column.label).in_(set(labels.split(","))))
+    if dtype:
+        statement = statement.where(Column.dtype == dtype)
+    res = session.exec(statement.offset(offset).limit(limit)).all()
+    return [
+        ColumnResponse(
+            label=label,
+            row_type=row_type,
+            rows=rows.split(",") if rows else [],
+        )
+        for label, row_type, rows in res
+    ]
