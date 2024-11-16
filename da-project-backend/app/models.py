@@ -39,6 +39,7 @@ NOTE:
 ## REPORT MODELS
 class ReportFields(SQLModel):
     report_id: int | None = Field(default=None, primary_key=True)
+    report_overview: str = Field(default="")
     raw_csv: str = Field(default="")
 
 
