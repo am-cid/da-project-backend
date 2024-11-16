@@ -5,11 +5,11 @@ from sqlmodel import select
 
 from .database import SessionDep
 from .models import (
-    Remark,
-    RemarkCreate,
-    RemarkResponse,
-    Report,
-    ReportResponse,
+    Comment,
+    CommentCreate,
+    CommentResponse,
+    Page,
+    PageResponse,
 )
 
 app = FastAPI()
@@ -20,20 +20,20 @@ def get_all_reports(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
-) -> List[ReportResponse]:
-    reports = session.exec(select(Report).offset(offset).limit(limit)).all()
-    return ReportResponse.from_reports(reports)
+) -> List[PageResponse]:
+    reports = session.exec(select(Page).offset(offset).limit(limit)).all()
+    return PageResponse.from_pages(reports)
 
 
 @app.get("/api/report/{report_id}")
 def get_report(
     report_id: int,
     session: SessionDep,
-) -> ReportResponse:
-    report = session.get(Report, report_id)
+) -> PageResponse:
+    report = session.get(Page, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    return ReportResponse.from_report(report)
+    return PageResponse.from_page(report)
 
 
 @app.get("/api/report/{report_id}/comments")
@@ -42,21 +42,21 @@ def get_report_remarks(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
-) -> List[RemarkResponse]:
+) -> List[CommentResponse]:
     remarks = session.exec(
-        select(Remark).where(Remark.report_id == report_id).offset(offset).limit(limit)
+        select(Comment).where(Comment.page_id == report_id).offset(offset).limit(limit)
     ).all()
-    return RemarkResponse.from_remarks(remarks)
+    return CommentResponse.from_comments(remarks)
 
 
 @app.post("/api/report/{report_id}/comments")
 def post_report_remark(
     report_id: int,
-    remark: RemarkCreate,
+    remark: CommentCreate,
     session: SessionDep,
-) -> RemarkResponse:
-    db_remark = remark.validate_to_remark(report_id)
+) -> CommentResponse:
+    db_remark = remark.validate_to_comment(report_id)
     session.add(db_remark)
     session.commit()
     session.refresh(db_remark)
-    return RemarkResponse.from_remark(db_remark)
+    return CommentResponse.from_comment(db_remark)
