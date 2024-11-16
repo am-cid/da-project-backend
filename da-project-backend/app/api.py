@@ -15,48 +15,48 @@ from .models import (
 app = FastAPI()
 
 
-@app.get("/api/report")
-def get_all_reports(
+@app.get("/api/report-page")
+def get_all_report_pages(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> List[PageResponse]:
-    reports = session.exec(select(Page).offset(offset).limit(limit)).all()
-    return PageResponse.from_pages(reports)
+    pages = session.exec(select(Page).offset(offset).limit(limit)).all()
+    return PageResponse.from_pages(pages)
 
 
-@app.get("/api/report/{report_id}")
-def get_report(
-    report_id: int,
+@app.get("/api/report-page/{page_id}")
+def get_report_page(
+    page_id: int,
     session: SessionDep,
 ) -> PageResponse:
-    report = session.get(Page, report_id)
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
-    return PageResponse.from_page(report)
+    page = session.get(Page, page_id)
+    if not page:
+        raise HTTPException(status_code=404, detail="Report page not found")
+    return PageResponse.from_page(page)
 
 
-@app.get("/api/report/{report_id}/comments")
-def get_report_remarks(
-    report_id: int,
+@app.get("/api/report-page/{page_id}/comments")
+def get_page_comments(
+    page_id: int,
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> List[CommentResponse]:
-    remarks = session.exec(
-        select(Comment).where(Comment.page_id == report_id).offset(offset).limit(limit)
+    comments = session.exec(
+        select(Comment).where(Comment.page_id == page_id).offset(offset).limit(limit)
     ).all()
-    return CommentResponse.from_comments(remarks)
+    return CommentResponse.from_comments(comments)
 
 
-@app.post("/api/report/{report_id}/comments")
-def post_report_remark(
-    report_id: int,
-    remark: CommentCreate,
+@app.post("/api/report-page/{page_id}/comments")
+def post_page_comment(
+    page_id: int,
+    comment: CommentCreate,
     session: SessionDep,
 ) -> CommentResponse:
-    db_remark = remark.validate_to_comment(report_id)
-    session.add(db_remark)
+    db_comment = comment.validate_to_comment(page_id)
+    session.add(db_comment)
     session.commit()
-    session.refresh(db_remark)
-    return CommentResponse.from_comment(db_remark)
+    session.refresh(db_comment)
+    return CommentResponse.from_comment(db_comment)
