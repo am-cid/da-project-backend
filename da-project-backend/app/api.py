@@ -73,7 +73,9 @@ def get_report(
         select(Report).where(Report.report_id == report_id).offset(0).limit(1)
     ).first()
     if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+        raise HTTPException(
+            status_code=404, detail=f"Report with if '{report_id}' not found"
+        )
     return ReportResponse.from_report(report)
 
 
@@ -107,7 +109,7 @@ def delete_report(
     ).first()
     if not original:
         raise HTTPException(
-            status_code=404, detail=f"Report with if '{report_id}' not found"
+            status_code=404, detail=f"Report with id '{report_id}' not found"
         )
     session.delete(original)
     session.commit()
@@ -154,7 +156,10 @@ def get_report_page(
         .limit(1)
     ).first()
     if not page:
-        raise HTTPException(status_code=404, detail="Report page not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Page from report '{report_id}' with id '{page_id}' not found",
+        )
     return PageResponse.from_page(page)
 
 
@@ -173,7 +178,8 @@ def update_report_page(
     ).first()
     if not original:
         raise HTTPException(
-            status_code=404, detail=f"Report with if '{report_id}' not found"
+            status_code=404,
+            detail=f"Page from report '{report_id}' with id '{page_id}' not found",
         )
     update.apply_to(original)
     session.add(original)
@@ -196,14 +202,15 @@ def delete_report_page(
     ).first()
     if not original:
         raise HTTPException(
-            status_code=404, detail=f"Report with if '{report_id}' not found"
+            status_code=404,
+            detail=f"Page from report '{report_id}' with id '{page_id}' not found",
         )
     session.delete(original)
     session.commit()
     return PageResponse.from_page(original)
 
 
-@app.get("/api/report/{report_id}/page/{page_id}/comments")
+@app.get("/api/report/{report_id}/page/{page_id}/comment")
 def get_all_report_page_comments(
     report_id: int,
     page_id: int,
@@ -221,7 +228,7 @@ def get_all_report_page_comments(
     return CommentResponse.from_comments(comments)
 
 
-@app.post("/api/report/{report_id}/page/{page_id}/comments")
+@app.post("/api/report/{report_id}/page/{page_id}/comment")
 def add_report_page_comment(
     report_id: int,
     page_id: int,
@@ -233,7 +240,8 @@ def add_report_page_comment(
     ).first()
     if not exists:
         raise HTTPException(
-            status_code=404, detail=f"Report with id '{report_id}' not found"
+            status_code=404,
+            detail=f"Page from report '{report_id}' with id '{page_id}' not found",
         )
     db_comment = comment.validate_to_comment(page_id)
     session.add(db_comment)

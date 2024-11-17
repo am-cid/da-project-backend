@@ -282,11 +282,11 @@ class CommentResponse(BaseModel):
 
 
 class CommentCreate(BaseModel):
-    remark: str
+    comment: str
 
     def validate_to_comment(self, page_id: int) -> Comment:
         return CommentFields(
-            comment=self.remark,
+            comment=self.comment,
             page_id=page_id,
             created_at=datetime.now(),
             updated_at=datetime.now(),
