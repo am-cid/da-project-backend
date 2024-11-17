@@ -39,7 +39,6 @@ async def lifespan(_: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.get("/api/report-page")
 @app.get("/api/report")
 def get_all_reports(
     session: SessionDep,
@@ -75,45 +74,69 @@ def add_report(
     return ReportResponse.from_report(db_report)
 
 
+@app.get("/api/report/{report_id}/page")
 def get_all_report_pages(
+    report_id: int,
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> List[PageResponse]:
-    pages = session.exec(select(Page).offset(offset).limit(limit)).all()
+    pages = session.exec(
+        select(Page).where(Page.report_id == report_id).offset(offset).limit(limit)
+    ).all()
     return PageResponse.from_pages(pages)
 
 
-@app.get("/api/report-page/{page_id}")
+@app.get("/api/report/{report_id}/page/{page_id}")
 def get_report_page(
+    report_id: int,
     page_id: int,
     session: SessionDep,
 ) -> PageResponse:
-    page = session.get(Page, page_id)
+    page = session.exec(
+        select(Page)
+        .where(Page.report_id == report_id)
+        .where(Page.page_id == page_id)
+        .offset(0)
+        .limit(1)
+    ).first()
     if not page:
         raise HTTPException(status_code=404, detail="Report page not found")
     return PageResponse.from_page(page)
 
 
-@app.get("/api/report-page/{page_id}/comments")
-def get_page_comments(
+@app.get("/api/report/{report_id}/page/{page_id}/comments")
+def get_all_report_page_comments(
+    report_id: int,
     page_id: int,
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> List[CommentResponse]:
     comments = session.exec(
-        select(Comment).where(Comment.page_id == page_id).offset(offset).limit(limit)
+        select(Comment)
+        .join(Page)
+        .where(Page.report_id == report_id, Comment.page_id == page_id)
+        .offset(offset)
+        .limit(limit)
     ).all()
     return CommentResponse.from_comments(comments)
 
 
-@app.post("/api/report-page/{page_id}/comments")
-def post_page_comment(
+@app.post("/api/report/{report_id}/page/{page_id}/comments")
+def add_report_page_comment(
+    report_id: int,
     page_id: int,
     comment: CommentCreate,
     session: SessionDep,
 ) -> CommentResponse:
+    exists = session.exec(
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+    ).first()
+    if not exists:
+        raise HTTPException(
+            status_code=404, detail=f"Report with id '{report_id}' not found"
+        )
     db_comment = comment.validate_to_comment(page_id)
     session.add(db_comment)
     session.commit()
@@ -121,8 +144,9 @@ def post_page_comment(
     return CommentResponse.from_comment(db_comment)
 
 
-@app.get("/api/report-page/{page_id}/column")
+@app.get("/api/report/{report_id}/page/{page_id}/column")
 def get_report_page_columns(
+    report_id: int,
     page_id: int,
     session: SessionDep,
     labels: str | None = None,
@@ -133,8 +157,11 @@ def get_report_page_columns(
     statement = (
         select(Column.label, Column.dtype, Column.rows)
         .select_from(Page, Column)
-        .where(Page.page_id == page_id)
-        .where(Column.report_id == Page.report_id)
+        .where(
+            Page.report_id == report_id,
+            Page.page_id == page_id,
+            Column.report_id == Page.report_id,
+        )
     )
     if labels:
         statement = statement.where(col(Column.label).in_(set(labels.split(","))))
@@ -163,7 +190,7 @@ class ColumnOperation(enum.StrEnum):
 
 
 @app.get(
-    "/api/report-page/{page_id}/column/{label}",
+    "/api/report/{report_id}/page/{page_id}/column/{label}",
     description=r"""
 If no operation is specified, this will return `array<string> | null`.
 Response type is dependent on optional operation query param.
@@ -184,6 +211,7 @@ return `null`
 """,
 )
 def get_report_page_column_data_by_label(
+    report_id: int,
     page_id: int,
     label: str,
     session: SessionDep,
@@ -192,9 +220,12 @@ def get_report_page_column_data_by_label(
     res = session.exec(
         select(Column.rows, Column.dtype)
         .select_from(Page, Column)
-        .where(Page.page_id == page_id)
-        .where(Column.report_id == Page.report_id)
-        .where(Column.label == label)
+        .where(
+            Page.report_id == report_id,
+            Page.page_id == page_id,
+            Column.report_id == Page.report_id,
+            Column.label == label,
+        )
     ).first()
     if not res:
         return None
