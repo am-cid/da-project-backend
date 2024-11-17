@@ -358,11 +358,11 @@ class ColumnOperation(enum.StrEnum):
 @app.get(
     "/api/report/{report_id}/page/{page_id}/column/{label}",
     description=r"""
-If no operation is specified, this will return `array<string> | null`.
+If no operation is specified, this will return `array<number> | array<string> | array<bool>`.
 Response type is dependent on optional operation query param.
 
 Certain operations require a specific column datatype. Mismatching types will
-return `null`
+return a 422 Unprocessable Content
 | operation | column datatype | response type |
 |-|-|-|
 | no operation specified | number, string, bool | array\<number\>, array\<string\>, array\<bool\> |
@@ -382,7 +382,9 @@ def get_report_page_column_data_by_label(
     label: str,
     session: SessionDep,
     operation: ColumnOperation | None = None,
-) -> list[bool] | list[float] | list[str] | bool | float | str | None:
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> list[bool] | list[float] | list[str] | bool | float | str:
     res = session.exec(
         select(Column.rows, Column.dtype)
         .select_from(Page, Column)
@@ -392,12 +394,20 @@ def get_report_page_column_data_by_label(
             Column.report_id == Page.report_id,
             Column.label == label,
         )
+        .offset(offset)
+        .limit(limit)
     ).first()
     if not res:
-        return None
+        raise HTTPException(
+            status_code=404,
+            detail=f"No columns in report '{report_id}' page '{page_id}' found",
+        )
     (row, dtype) = res
-    if not row or row == ",":
-        return None
+    if not row or "".join(set(list(row))) == ",":
+        raise HTTPException(
+            status_code=422,
+            detail=f"Column does exist in report '{report_id}' page '{page_id}' but no rows are found (empty column)",
+        )
     match dtype:
         case ColumnDataType.BOOLEAN:
             return _handle_bool_column(row, operation)
@@ -405,11 +415,16 @@ def get_report_page_column_data_by_label(
             return _handle_number_column(row, operation)
         case ColumnDataType.STRING:
             return _handle_string_column(row, operation)
+        case _:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Internal server error. Unknown row data type '{dtype}'",
+            )
 
 
 def _handle_string_column(
     row: str, operation: ColumnOperation | None
-) -> list[str] | str | int | None:
+) -> list[str] | str | int:
     row_data = row.split(",")
     match operation:
         case None:
@@ -419,12 +434,15 @@ def _handle_string_column(
         case ColumnOperation.LAST:
             return row_data[len(row_data) - 1]
         case _:
-            return None
+            raise HTTPException(
+                status_code=422,
+                detail=f"Row operation '{operation}' is impossible for row data type 'bool'",
+            )
 
 
 def _handle_bool_column(
     row: str, operation: ColumnOperation | None
-) -> list[bool] | bool | int | None:
+) -> list[bool] | bool | int:
     row_data = list(map(bool, row.split(",")))
     match operation:
         case None:
@@ -434,12 +452,15 @@ def _handle_bool_column(
         case ColumnOperation.LAST:
             return row_data[len(row_data) - 1]
         case _:
-            return None
+            raise HTTPException(
+                status_code=422,
+                detail=f"Row operation '{operation}' is impossible for row data type 'bool'",
+            )
 
 
 def _handle_number_column(
     row: str, operation: ColumnOperation | None
-) -> list[float] | float | int | None:
+) -> list[float] | float | int:
     row_data = list(map(float, row.split(",")))
     if not operation:
         return row_data
