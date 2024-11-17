@@ -17,6 +17,7 @@ from .models import (
     CommentCreate,
     CommentResponse,
     Page,
+    PageCreate,
     PageResponse,
     Report,
     ReportCreate,
@@ -103,6 +104,19 @@ def get_report_page(
     if not page:
         raise HTTPException(status_code=404, detail="Report page not found")
     return PageResponse.from_page(page)
+
+
+@app.post("/api/report/{report_id}/page")
+def add_report_page(
+    report_id: int,
+    page: PageCreate,
+    session: SessionDep,
+):
+    db_page = page.validate_to_page(report_id)
+    session.add(db_page)
+    session.commit()
+    session.refresh(db_page)
+    return PageResponse.from_page(db_page)
 
 
 @app.get("/api/report/{report_id}/page/{page_id}/comments")
