@@ -18,6 +18,9 @@ from .models import (
     CommentResponse,
     Page,
     PageResponse,
+    Report,
+    ReportCreate,
+    ReportResponse,
 )
 
 
@@ -37,6 +40,41 @@ app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/api/report-page")
+@app.get("/api/report")
+def get_all_reports(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> List[ReportResponse]:
+    reports = session.exec(select(Report).offset(offset).limit(limit)).all()
+    return ReportResponse.from_reports(reports)
+
+
+@app.get("/api/report/{report_id}")
+def get_report(
+    report_id: int,
+    session: SessionDep,
+) -> ReportResponse:
+    report = session.exec(
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+    ).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return ReportResponse.from_report(report)
+
+
+@app.post("/api/report")
+def add_report(
+    report: ReportCreate,
+    session: SessionDep,
+):
+    db_report = report.validate_to_report()
+    session.add(db_report)
+    session.commit()
+    session.refresh(db_report)
+    return ReportResponse.from_report(db_report)
+
+
 def get_all_report_pages(
     session: SessionDep,
     offset: int = 0,
