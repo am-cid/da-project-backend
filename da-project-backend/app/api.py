@@ -21,6 +21,7 @@ from .models import (
     PageResponse,
     Report,
     ReportCreate,
+    ReportUpdate,
     ReportResponse,
 )
 
@@ -73,6 +74,43 @@ def add_report(
     session.commit()
     session.refresh(db_report)
     return ReportResponse.from_report(db_report)
+
+
+@app.patch("/api/report/{report_id}")
+def update_report(
+    report_id: int,
+    update: ReportUpdate,
+    session: SessionDep,
+):
+    original = session.exec(
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404, detail=f"Report with if '{report_id}' not found"
+        )
+    update.apply_to(original)
+    session.add(original)
+    session.commit()
+    session.refresh(original)
+    return ReportResponse.from_report(original)
+
+
+@app.delete("/api/report/{report_id}")
+def delete_report(
+    report_id: int,
+    session: SessionDep,
+):
+    original = session.exec(
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404, detail=f"Report with if '{report_id}' not found"
+        )
+    session.delete(original)
+    session.commit()
+    return ReportResponse.from_report(original)
 
 
 @app.get("/api/report/{report_id}/page")
