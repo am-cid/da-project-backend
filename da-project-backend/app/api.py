@@ -1,11 +1,14 @@
 import enum
 from collections import Counter
-from typing import Annotated, List
+from contextlib import asynccontextmanager
+from typing import Annotated, List, Literal
 
+import google.generativeai as genai
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from sqlmodel import col, select
 
-from .database import SessionDep
+from .database import SessionDep, create_db_and_tables
 from .models import (
     Column,
     ColumnDataType,
@@ -17,7 +20,20 @@ from .models import (
     PageResponse,
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # startup
+    create_db_and_tables()
+    load_dotenv()
+    genai.configure()
+    # end startup
+    yield
+    # shutdown
+    # end shutdown
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/api/report-page")
@@ -219,3 +235,15 @@ def _handle_number_column(
             return modes
         case ColumnOperation.SUM:
             return sum(row_data)
+
+
+@app.post("/api/gemini")
+def prompt_gemini(
+    prompt: str,
+    _: SessionDep,
+    model: Literal[
+        "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"
+    ] = "gemini-1.5-flash",
+):
+    res = genai.GenerativeModel(model).generate_content(prompt)
+    return res.text
