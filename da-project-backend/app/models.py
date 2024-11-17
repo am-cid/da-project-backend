@@ -82,6 +82,18 @@ class ReportCreate(BaseModel):
         ).to_report()
 
 
+class ReportUpdate(BaseModel):
+    overview: str | None = None
+    csv: str | None = None
+
+    def apply_to(self, original: Report):
+        if self.overview is not None:
+            original.report_overview = self.overview
+        if self.csv is not None:
+            original.raw_csv = self.csv
+        original.model_validate(original)
+
+
 ## PAGE MODELS
 class PageChartType(enum.StrEnum):
     BAR_CHART = "BAR_CHART"
