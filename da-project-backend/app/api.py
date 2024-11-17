@@ -110,22 +110,23 @@ class ColumnOperation(enum.StrEnum):
 
 @app.get(
     "/api/report-page/{page_id}/column/{label}",
-    description="""
+    description=r"""
 If no operation is specified, this will return `array<string> | null`.
 Response type is dependent on optional operation query param.
 
-Depending on the operation set, the row data type must be of a specific type or else
-this return `null`
-
-    operation: dtype = response type
-    first: number | string | bool = number | string | bool
-    last: number | string | bool = number | string | bool
-    max: number = number
-    mean: number = number
-    median: number = number
-    min: number = number
-    mode: number = array<number>
-    sum: number = number
+Certain operations require a specific column datatype. Mismatching types will
+return `null`
+| operation | column datatype | response type |
+|-|-|-|
+| no operation specified | number, string, bool | array\<number\>, array\<string\>, array\<bool\> |
+| first | number, string, bool | number, string, bool |
+| last | number, string, bool | number, string, bool |
+| max | number | number |
+| mean | number | number |
+| median | number | number |
+| min | number | number |
+| mode | number | array\<number\> |
+| sum | number | number |
 """,
 )
 def get_report_page_column_data_by_label(
@@ -134,14 +135,13 @@ def get_report_page_column_data_by_label(
     session: SessionDep,
     operation: ColumnOperation | None = None,
 ) -> list[bool] | list[float] | list[str] | bool | float | str | None:
-    statement = (
+    res = session.exec(
         select(Column.rows, Column.dtype)
         .select_from(Page, Column)
         .where(Page.page_id == page_id)
         .where(Column.report_id == Page.report_id)
         .where(Column.label == label)
-    )
-    res = session.exec(statement).first()
+    ).first()
     if not res:
         return None
     (row, dtype) = res
