@@ -98,6 +98,17 @@ class PageFields(SQLModel):
     chart_type: PageChartType = Field(sa_column=Col(Enum(PageChartType)))
     labels: str = Field(default="")
 
+    def to_page(self) -> "Page":
+        valid = self.model_validate(self)
+        return Page(
+            page_id=valid.page_id,
+            report_id=valid.report_id,
+            page_name=valid.page_name,
+            page_overview=valid.page_overview,
+            chart_type=valid.chart_type,
+            labels=valid.labels,
+        )
+
 
 class Page(PageFields, table=True):
     report: Report = Relationship(back_populates="pages")
@@ -124,6 +135,22 @@ class PageResponse(BaseModel):
     @staticmethod
     def from_pages(pages: Sequence[Page]) -> "List[PageResponse]":
         return [PageResponse.from_page(page) for page in pages]
+
+
+class PageCreate(BaseModel):
+    name: str
+    overview: str
+    chart_type: PageChartType
+    labels: str
+
+    def validate_to_page(self, report_id: int) -> Page:
+        return PageFields(
+            report_id=report_id,
+            page_name=self.name,
+            page_overview=self.overview,
+            chart_type=self.chart_type,
+            labels=self.labels,
+        ).to_page()
 
 
 ## COLUMN MODELS
