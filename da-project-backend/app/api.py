@@ -16,8 +16,15 @@ from .models import (
     Comment,
     CommentCreate,
     CommentResponse,
+    CommentUpdate,
     Page,
+    PageCreate,
     PageResponse,
+    PageUpdate,
+    Report,
+    ReportCreate,
+    ReportUpdate,
+    ReportResponse,
 )
 
 
@@ -36,46 +43,207 @@ async def lifespan(_: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.get("/api/report-page")
+@app.get("/api/report")
+def get_all_reports(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> List[ReportResponse]:
+    reports = session.exec(select(Report).offset(offset).limit(limit)).all()
+    return ReportResponse.from_reports(reports)
+
+
+@app.post("/api/report")
+def add_report(
+    report: ReportCreate,
+    session: SessionDep,
+):
+    db_report = report.validate_to_report()
+    session.add(db_report)
+    session.commit()
+    session.refresh(db_report)
+    return ReportResponse.from_report(db_report)
+
+
+@app.get("/api/report/{report_id}")
+def get_report(
+    report_id: int,
+    session: SessionDep,
+) -> ReportResponse:
+    report = session.exec(
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+    ).first()
+    if not report:
+        raise HTTPException(
+            status_code=404, detail=f"Report with if '{report_id}' not found"
+        )
+    return ReportResponse.from_report(report)
+
+
+@app.patch("/api/report/{report_id}")
+def update_report(
+    report_id: int,
+    update: ReportUpdate,
+    session: SessionDep,
+):
+    original = session.exec(
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404, detail=f"Report with if '{report_id}' not found"
+        )
+    update.apply_to(original)
+    session.add(original)
+    session.commit()
+    session.refresh(original)
+    return ReportResponse.from_report(original)
+
+
+@app.delete("/api/report/{report_id}")
+def delete_report(
+    report_id: int,
+    session: SessionDep,
+):
+    original = session.exec(
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404, detail=f"Report with id '{report_id}' not found"
+        )
+    session.delete(original)
+    session.commit()
+    return ReportResponse.from_report(original)
+
+
+@app.get("/api/report/{report_id}/page")
 def get_all_report_pages(
+    report_id: int,
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> List[PageResponse]:
-    pages = session.exec(select(Page).offset(offset).limit(limit)).all()
+    pages = session.exec(
+        select(Page).where(Page.report_id == report_id).offset(offset).limit(limit)
+    ).all()
     return PageResponse.from_pages(pages)
 
 
-@app.get("/api/report-page/{page_id}")
+@app.post("/api/report/{report_id}/page")
+def add_report_page(
+    report_id: int,
+    page: PageCreate,
+    session: SessionDep,
+):
+    db_page = page.validate_to_page(report_id)
+    session.add(db_page)
+    session.commit()
+    session.refresh(db_page)
+    return PageResponse.from_page(db_page)
+
+
+@app.get("/api/report/{report_id}/page/{page_id}")
 def get_report_page(
+    report_id: int,
     page_id: int,
     session: SessionDep,
 ) -> PageResponse:
-    page = session.get(Page, page_id)
+    page = session.exec(
+        select(Page)
+        .where(Page.report_id == report_id)
+        .where(Page.page_id == page_id)
+        .offset(0)
+        .limit(1)
+    ).first()
     if not page:
-        raise HTTPException(status_code=404, detail="Report page not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Page from report '{report_id}' with id '{page_id}' not found",
+        )
     return PageResponse.from_page(page)
 
 
-@app.get("/api/report-page/{page_id}/comments")
-def get_page_comments(
+@app.patch("/api/report/{report_id}/page/{page_id}")
+def update_report_page(
+    report_id: int,
+    page_id: int,
+    update: PageUpdate,
+    session: SessionDep,
+):
+    original = session.exec(
+        select(Page)
+        .where(Page.report_id == report_id, Page.page_id == page_id)
+        .offset(0)
+        .limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Page from report '{report_id}' with id '{page_id}' not found",
+        )
+    update.apply_to(original)
+    session.add(original)
+    session.commit()
+    session.refresh(original)
+    return PageResponse.from_page(original)
+
+
+@app.delete("/api/report/{report_id}/page/{page_id}")
+def delete_report_page(
+    report_id: int,
+    page_id: int,
+    session: SessionDep,
+):
+    original = session.exec(
+        select(Page)
+        .where(Page.report_id == report_id, Page.page_id == page_id)
+        .offset(0)
+        .limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Page from report '{report_id}' with id '{page_id}' not found",
+        )
+    session.delete(original)
+    session.commit()
+    return PageResponse.from_page(original)
+
+
+@app.get("/api/report/{report_id}/page/{page_id}/comment")
+def get_all_report_page_comments(
+    report_id: int,
     page_id: int,
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> List[CommentResponse]:
     comments = session.exec(
-        select(Comment).where(Comment.page_id == page_id).offset(offset).limit(limit)
+        select(Comment)
+        .join(Page)
+        .where(Page.report_id == report_id, Comment.page_id == page_id)
+        .offset(offset)
+        .limit(limit)
     ).all()
     return CommentResponse.from_comments(comments)
 
 
-@app.post("/api/report-page/{page_id}/comments")
-def post_page_comment(
+@app.post("/api/report/{report_id}/page/{page_id}/comment")
+def add_report_page_comment(
+    report_id: int,
     page_id: int,
     comment: CommentCreate,
     session: SessionDep,
 ) -> CommentResponse:
+    exists = session.exec(
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+    ).first()
+    if not exists:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Page from report '{report_id}' with id '{page_id}' not found",
+        )
     db_comment = comment.validate_to_comment(page_id)
     session.add(db_comment)
     session.commit()
@@ -83,8 +251,68 @@ def post_page_comment(
     return CommentResponse.from_comment(db_comment)
 
 
-@app.get("/api/report-page/{page_id}/column")
+@app.patch("/api/report/{report_id}/page/{page_id}/comment/{comment_id}")
+def update_report_page_comment(
+    report_id: int,
+    page_id: int,
+    comment_id: int,
+    update: CommentUpdate,
+    session: SessionDep,
+):
+    original = session.exec(
+        select(Comment)
+        .join(Page)
+        .where(
+            Page.report_id == report_id,
+            Comment.page_id == page_id,
+            Comment.comment_id == comment_id,
+        )
+        .offset(0)
+        .limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Comment from report '{report_id}' page '{page_id}' with id '{comment_id}' not found",
+        )
+    update.apply_to(original)
+    session.add(original)
+    session.commit()
+    session.refresh(original)
+    return CommentResponse.from_comment(original)
+
+
+@app.delete("/api/report/{report_id}/page/{page_id}/comment/{comment_id}")
+def delete_report_page_comment(
+    report_id: int,
+    page_id: int,
+    comment_id: int,
+    session: SessionDep,
+):
+    original = session.exec(
+        select(Comment)
+        .join(Page)
+        .where(
+            Page.report_id == report_id,
+            Comment.page_id == page_id,
+            Comment.comment_id == comment_id,
+        )
+        .offset(0)
+        .limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Comment from report '{report_id}' page '{page_id}' with id '{comment_id}' not found",
+        )
+    session.delete(original)
+    session.commit()
+    return CommentResponse.from_comment(original)
+
+
+@app.get("/api/report/{report_id}/page/{page_id}/column")
 def get_report_page_columns(
+    report_id: int,
     page_id: int,
     session: SessionDep,
     labels: str | None = None,
@@ -95,8 +323,11 @@ def get_report_page_columns(
     statement = (
         select(Column.label, Column.dtype, Column.rows)
         .select_from(Page, Column)
-        .where(Page.page_id == page_id)
-        .where(Column.report_id == Page.report_id)
+        .where(
+            Page.report_id == report_id,
+            Page.page_id == page_id,
+            Column.report_id == Page.report_id,
+        )
     )
     if labels:
         statement = statement.where(col(Column.label).in_(set(labels.split(","))))
@@ -125,13 +356,13 @@ class ColumnOperation(enum.StrEnum):
 
 
 @app.get(
-    "/api/report-page/{page_id}/column/{label}",
+    "/api/report/{report_id}/page/{page_id}/column/{label}",
     description=r"""
-If no operation is specified, this will return `array<string> | null`.
+If no operation is specified, this will return `array<number> | array<string> | array<bool>`.
 Response type is dependent on optional operation query param.
 
 Certain operations require a specific column datatype. Mismatching types will
-return `null`
+return a 422 Unprocessable Content
 | operation | column datatype | response type |
 |-|-|-|
 | no operation specified | number, string, bool | array\<number\>, array\<string\>, array\<bool\> |
@@ -146,23 +377,37 @@ return `null`
 """,
 )
 def get_report_page_column_data_by_label(
+    report_id: int,
     page_id: int,
     label: str,
     session: SessionDep,
     operation: ColumnOperation | None = None,
-) -> list[bool] | list[float] | list[str] | bool | float | str | None:
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> list[bool] | list[float] | list[str] | bool | float | str:
     res = session.exec(
         select(Column.rows, Column.dtype)
         .select_from(Page, Column)
-        .where(Page.page_id == page_id)
-        .where(Column.report_id == Page.report_id)
-        .where(Column.label == label)
+        .where(
+            Page.report_id == report_id,
+            Page.page_id == page_id,
+            Column.report_id == Page.report_id,
+            Column.label == label,
+        )
+        .offset(offset)
+        .limit(limit)
     ).first()
     if not res:
-        return None
+        raise HTTPException(
+            status_code=404,
+            detail=f"No columns in report '{report_id}' page '{page_id}' found",
+        )
     (row, dtype) = res
-    if not row or row == ",":
-        return None
+    if not row or "".join(set(list(row))) == ",":
+        raise HTTPException(
+            status_code=422,
+            detail=f"Column does exist in report '{report_id}' page '{page_id}' but no rows are found (empty column)",
+        )
     match dtype:
         case ColumnDataType.BOOLEAN:
             return _handle_bool_column(row, operation)
@@ -170,11 +415,16 @@ def get_report_page_column_data_by_label(
             return _handle_number_column(row, operation)
         case ColumnDataType.STRING:
             return _handle_string_column(row, operation)
+        case _:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Internal server error. Unknown row data type '{dtype}'",
+            )
 
 
 def _handle_string_column(
     row: str, operation: ColumnOperation | None
-) -> list[str] | str | int | None:
+) -> list[str] | str | int:
     row_data = row.split(",")
     match operation:
         case None:
@@ -184,12 +434,15 @@ def _handle_string_column(
         case ColumnOperation.LAST:
             return row_data[len(row_data) - 1]
         case _:
-            return None
+            raise HTTPException(
+                status_code=422,
+                detail=f"Row operation '{operation}' is impossible for row data type 'bool'",
+            )
 
 
 def _handle_bool_column(
     row: str, operation: ColumnOperation | None
-) -> list[bool] | bool | int | None:
+) -> list[bool] | bool | int:
     row_data = list(map(bool, row.split(",")))
     match operation:
         case None:
@@ -199,12 +452,15 @@ def _handle_bool_column(
         case ColumnOperation.LAST:
             return row_data[len(row_data) - 1]
         case _:
-            return None
+            raise HTTPException(
+                status_code=422,
+                detail=f"Row operation '{operation}' is impossible for row data type 'bool'",
+            )
 
 
 def _handle_number_column(
     row: str, operation: ColumnOperation | None
-) -> list[float] | float | int | None:
+) -> list[float] | float | int:
     row_data = list(map(float, row.split(",")))
     if not operation:
         return row_data

@@ -42,10 +42,56 @@ class ReportFields(SQLModel):
     report_overview: str = Field(default="")
     raw_csv: str = Field(default="")
 
+    def to_report(self) -> "Report":
+        valid = self.model_validate(self)
+        return Report(
+            report_overview=valid.report_overview,
+            raw_csv=valid.raw_csv,
+        )
+
 
 class Report(ReportFields, table=True):
     pages: List["Page"] = Relationship(back_populates="report", cascade_delete=True)
     columns: List["Column"] = Relationship(back_populates="report", cascade_delete=True)
+
+
+class ReportResponse(BaseModel):
+    id: int
+    overview: str
+
+    @staticmethod
+    def from_report(report: Report) -> "ReportResponse":
+        return ReportResponse(
+            id=report.report_id if report.report_id is not None else 0,
+            overview=report.report_overview,
+        )
+
+    @staticmethod
+    def from_reports(reports: Sequence[Report]) -> "List[ReportResponse]":
+        return [ReportResponse.from_report(report) for report in reports]
+
+
+class ReportCreate(BaseModel):
+    overview: str
+    csv: str
+
+    def validate_to_report(self) -> Report:
+        return ReportFields(
+            report_overview=self.overview,
+            raw_csv=self.csv,
+        ).to_report()
+
+
+class ReportUpdate(BaseModel):
+    overview: str | None = None
+    csv: str | None = None
+
+    def apply_to(self, original: Report):
+        if self.overview is not None:
+            original.report_overview = self.overview
+        if self.csv is not None:
+            original.raw_csv = self.csv
+        original.model_validate(original)
 
 
 ## PAGE MODELS
@@ -63,6 +109,17 @@ class PageFields(SQLModel):
     page_overview: str = Field(default="")
     chart_type: PageChartType = Field(sa_column=Col(Enum(PageChartType)))
     labels: str = Field(default="")
+
+    def to_page(self) -> "Page":
+        valid = self.model_validate(self)
+        return Page(
+            page_id=valid.page_id,
+            report_id=valid.report_id,
+            page_name=valid.page_name,
+            page_overview=valid.page_overview,
+            chart_type=valid.chart_type,
+            labels=valid.labels,
+        )
 
 
 class Page(PageFields, table=True):
@@ -90,6 +147,40 @@ class PageResponse(BaseModel):
     @staticmethod
     def from_pages(pages: Sequence[Page]) -> "List[PageResponse]":
         return [PageResponse.from_page(page) for page in pages]
+
+
+class PageCreate(BaseModel):
+    name: str
+    overview: str
+    chart_type: PageChartType
+    labels: str
+
+    def validate_to_page(self, report_id: int) -> Page:
+        return PageFields(
+            report_id=report_id,
+            page_name=self.name,
+            page_overview=self.overview,
+            chart_type=self.chart_type,
+            labels=self.labels,
+        ).to_page()
+
+
+class PageUpdate(BaseModel):
+    name: str | None = None
+    overview: str | None = None
+    chart_type: PageChartType | None = None
+    labels: str | None = None
+
+    def apply_to(self, original: Page):
+        if self.name is not None:
+            original.page_name = self.name
+        if self.overview is not None:
+            original.page_overview = self.overview
+        if self.chart_type is not None:
+            original.chart_type = self.chart_type
+        if self.labels is not None:
+            original.labels = self.labels
+        original.model_validate(original)
 
 
 ## COLUMN MODELS
@@ -173,12 +264,12 @@ class CommentResponse(BaseModel):
     updated_at: datetime
 
     @staticmethod
-    def from_comment(remark: Comment) -> "CommentResponse":
+    def from_comment(comment: Comment) -> "CommentResponse":
         return CommentResponse(
-            id=remark.comment_id if remark.comment_id is not None else 0,
-            comment=remark.comment,
-            created_at=remark.created_at,
-            updated_at=remark.updated_at,
+            id=comment.comment_id if comment.comment_id is not None else 0,
+            comment=comment.comment,
+            created_at=comment.created_at,
+            updated_at=comment.updated_at,
         )
 
     @staticmethod
@@ -186,17 +277,27 @@ class CommentResponse(BaseModel):
         return [CommentResponse.from_comment(column) for column in remarks]
 
     @staticmethod
-    def from_report(report: Page) -> "List[CommentResponse]":
-        return CommentResponse.from_comments(report.comments)
+    def from_report(page: Page) -> "List[CommentResponse]":
+        return CommentResponse.from_comments(page.comments)
 
 
 class CommentCreate(BaseModel):
-    remark: str
+    comment: str
 
-    def validate_to_comment(self, report_id: int) -> Comment:
+    def validate_to_comment(self, page_id: int) -> Comment:
         return CommentFields(
-            comment=self.remark,
-            page_id=report_id,
+            comment=self.comment,
+            page_id=page_id,
             created_at=datetime.now(),
             updated_at=datetime.now(),
         ).to_comment()
+
+
+class CommentUpdate(BaseModel):
+    comment: str | None = None
+
+    def apply_to(self, original: Comment):
+        if self.comment is not None:
+            original.comment = self.comment
+            original.updated_at = datetime.now()
+        original.model_validate(original)
