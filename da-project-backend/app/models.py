@@ -165,6 +165,24 @@ class PageCreate(BaseModel):
         ).to_page()
 
 
+class PageUpdate(BaseModel):
+    name: str | None = None
+    overview: str | None = None
+    chart_type: PageChartType | None = None
+    labels: str | None = None
+
+    def apply_to(self, original: Page):
+        if self.name is not None:
+            original.page_name = self.name
+        if self.overview is not None:
+            original.page_overview = self.overview
+        if self.chart_type is not None:
+            original.chart_type = self.chart_type
+        if self.labels is not None:
+            original.labels = self.labels
+        original.model_validate(original)
+
+
 ## COLUMN MODELS
 class ColumnDataType(enum.StrEnum):
     BOOLEAN = "BOOLEAN"

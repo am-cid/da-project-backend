@@ -19,6 +19,7 @@ from .models import (
     Page,
     PageCreate,
     PageResponse,
+    PageUpdate,
     Report,
     ReportCreate,
     ReportUpdate,
@@ -51,6 +52,18 @@ def get_all_reports(
     return ReportResponse.from_reports(reports)
 
 
+@app.post("/api/report")
+def add_report(
+    report: ReportCreate,
+    session: SessionDep,
+):
+    db_report = report.validate_to_report()
+    session.add(db_report)
+    session.commit()
+    session.refresh(db_report)
+    return ReportResponse.from_report(db_report)
+
+
 @app.get("/api/report/{report_id}")
 def get_report(
     report_id: int,
@@ -62,18 +75,6 @@ def get_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     return ReportResponse.from_report(report)
-
-
-@app.post("/api/report")
-def add_report(
-    report: ReportCreate,
-    session: SessionDep,
-):
-    db_report = report.validate_to_report()
-    session.add(db_report)
-    session.commit()
-    session.refresh(db_report)
-    return ReportResponse.from_report(db_report)
 
 
 @app.patch("/api/report/{report_id}")
@@ -126,6 +127,19 @@ def get_all_report_pages(
     return PageResponse.from_pages(pages)
 
 
+@app.post("/api/report/{report_id}/page")
+def add_report_page(
+    report_id: int,
+    page: PageCreate,
+    session: SessionDep,
+):
+    db_page = page.validate_to_page(report_id)
+    session.add(db_page)
+    session.commit()
+    session.refresh(db_page)
+    return PageResponse.from_page(db_page)
+
+
 @app.get("/api/report/{report_id}/page/{page_id}")
 def get_report_page(
     report_id: int,
@@ -144,17 +158,49 @@ def get_report_page(
     return PageResponse.from_page(page)
 
 
-@app.post("/api/report/{report_id}/page")
-def add_report_page(
+@app.patch("/api/report/{report_id}/page/{page_id}")
+def update_report_page(
     report_id: int,
-    page: PageCreate,
+    page_id: int,
+    update: PageUpdate,
     session: SessionDep,
 ):
-    db_page = page.validate_to_page(report_id)
-    session.add(db_page)
+    original = session.exec(
+        select(Page)
+        .where(Page.report_id == report_id, Page.page_id == page_id)
+        .offset(0)
+        .limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404, detail=f"Report with if '{report_id}' not found"
+        )
+    update.apply_to(original)
+    session.add(original)
     session.commit()
-    session.refresh(db_page)
-    return PageResponse.from_page(db_page)
+    session.refresh(original)
+    return PageResponse.from_page(original)
+
+
+@app.delete("/api/report/{report_id}/page/{page_id}")
+def delete_report_page(
+    report_id: int,
+    page_id: int,
+    session: SessionDep,
+):
+    original = session.exec(
+        select(Page)
+        .where(Page.report_id == report_id, Page.page_id == page_id)
+        .offset(0)
+        .limit(1)
+    ).first()
+    if not original:
+        raise HTTPException(
+            status_code=404, detail=f"Report with if '{report_id}' not found"
+        )
+    session.delete(original)
+    session.commit()
+    return PageResponse.from_page(original)
 
 
 @app.get("/api/report/{report_id}/page/{page_id}/comments")
