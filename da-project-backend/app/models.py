@@ -291,3 +291,13 @@ class CommentCreate(BaseModel):
             created_at=datetime.now(),
             updated_at=datetime.now(),
         ).to_comment()
+
+
+class CommentUpdate(BaseModel):
+    comment: str | None = None
+
+    def apply_to(self, original: Comment):
+        if self.comment is not None:
+            original.comment = self.comment
+            original.updated_at = datetime.now()
+        original.model_validate(original)
