@@ -98,12 +98,14 @@ def get_report_page_columns(
 
 
 class ColumnOperation(enum.StrEnum):
-    SUM = "sum"
+    FIRST = "first"
+    LAST = "last"
+    MAX = "max"
     MEAN = "mean"
     MEDIAN = "median"
-    MODE = "mode"
-    MAX = "max"
     MIN = "min"
+    MODE = "mode"
+    SUM = "sum"
 
 
 @app.get(
@@ -112,16 +114,18 @@ class ColumnOperation(enum.StrEnum):
 If no operation is specified, this will return `array<string> | null`.
 Response type is dependent on optional operation query param.
 
-If operation is set, the row data type in the db must be `"num"` or else this
-will return `null`.
+Depending on the operation set, the row data type must be of a specific type or else
+this return `null`
 
-    operation = response type
-    max = number
-    mean = number
-    median = number
-    min = number
-    mode = array<number>
-    sum = number
+    operation: dtype = response type
+    first: number | string | bool = number | string | bool
+    last: number | string | bool = number | string | bool
+    max: number = number
+    mean: number = number
+    median: number = number
+    min: number = number
+    mode: number = array<number>
+    sum: number = number
 """,
 )
 def get_report_page_column_data_by_label(
@@ -129,7 +133,7 @@ def get_report_page_column_data_by_label(
     label: str,
     session: SessionDep,
     operation: ColumnOperation | None = None,
-) -> list[str] | list[float] | float | None:
+) -> list[bool] | list[float] | list[str] | bool | float | str | None:
     statement = (
         select(Column.rows, Column.dtype)
         .select_from(Page, Column)
@@ -141,15 +145,58 @@ def get_report_page_column_data_by_label(
     if not res:
         return None
     (row, dtype) = res
-    if not row:
+    if not row or row == ",":
         return None
+    match dtype:
+        case ColumnDataType.BOOLEAN:
+            return _handle_bool_column(row, operation)
+        case ColumnDataType.NUMBER:
+            return _handle_number_column(row, operation)
+        case ColumnDataType.STRING:
+            return _handle_string_column(row, operation)
+
+
+def _handle_string_column(
+    row: str, operation: ColumnOperation | None
+) -> list[str] | str | int | None:
     row_data = row.split(",")
+    match operation:
+        case None:
+            return row_data
+        case ColumnOperation.FIRST:
+            return row_data[0]
+        case ColumnOperation.LAST:
+            return row_data[len(row_data) - 1]
+        case _:
+            return None
+
+
+def _handle_bool_column(
+    row: str, operation: ColumnOperation | None
+) -> list[bool] | bool | int | None:
+    row_data = list(map(bool, row.split(",")))
+    match operation:
+        case None:
+            return row_data
+        case ColumnOperation.FIRST:
+            return row_data[0]
+        case ColumnOperation.LAST:
+            return row_data[len(row_data) - 1]
+        case _:
+            return None
+
+
+def _handle_number_column(
+    row: str, operation: ColumnOperation | None
+) -> list[float] | float | int | None:
+    row_data = list(map(float, row.split(",")))
     if not operation:
         return row_data
-    if dtype != ColumnDataType.NUMBER:
-        return None
-    row_data = list(map(float, row_data))
     match operation:
+        case ColumnOperation.FIRST:
+            return row_data[0]
+        case ColumnOperation.LAST:
+            return row_data[len(row_data) - 1]
         case ColumnOperation.MAX:
             return max(row_data)
         case ColumnOperation.MEAN:
