@@ -328,24 +328,17 @@ def delete_report_page_comment(
     return CommentResponse.from_comment(original)
 
 
-@app.get("/api/report/{report_id}/page/{page_id}/column")
+@app.get("/api/report/{report_id}/column")
 def get_report_page_columns(
     report_id: int,
-    page_id: int,
     session: SessionDep,
     labels: str | None = None,
     dtype: ColumnDataType | None = None,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> List[ColumnResponse]:
-    statement = (
-        select(Column.label, Column.dtype, Column.rows)
-        .select_from(Page, Column)
-        .where(
-            Page.report_id == report_id,
-            Page.page_id == page_id,
-            Column.report_id == Page.report_id,
-        )
+    statement = select(Column.label, Column.dtype, Column.rows).where(
+        Column.report_id == report_id,
     )
     if labels:
         statement = statement.where(col(Column.label).in_(set(labels.split(","))))
@@ -355,7 +348,7 @@ def get_report_page_columns(
     return [
         ColumnResponse(
             label=label,
-            row_type=row_type,
+            column_type=ColumnDataType(row_type),
             rows=rows.split(",") if rows else [],
         )
         for label, row_type, rows in res
@@ -374,7 +367,7 @@ class ColumnOperation(enum.StrEnum):
 
 
 @app.get(
-    "/api/report/{report_id}/page/{page_id}/column/{label}",
+    "/api/report/{report_id}/column/{label}",
     description=r"""
 If no operation is specified, this will return `array<number> | array<string> | array<bool>`.
 Response type is dependent on optional operation query param.
@@ -396,7 +389,6 @@ return a 422 Unprocessable Content
 )
 def get_report_page_column_data_by_label(
     report_id: int,
-    page_id: int,
     label: str,
     session: SessionDep,
     operation: ColumnOperation | None = None,
@@ -405,26 +397,23 @@ def get_report_page_column_data_by_label(
 ) -> list[bool] | list[float] | list[str] | bool | float | str:
     res = session.exec(
         select(Column.rows, Column.dtype)
-        .select_from(Page, Column)
         .where(
-            Page.report_id == report_id,
-            Page.page_id == page_id,
-            Column.report_id == Page.report_id,
+            Column.report_id == report_id,
             Column.label == label,
         )
         .offset(offset)
-        .limit(limit)
+        .limit(limit),
     ).first()
     if not res:
         raise HTTPException(
             status_code=404,
-            detail=f"No columns in report '{report_id}' page '{page_id}' found",
+            detail=f"No columns in report '{report_id}' found",
         )
     (row, dtype) = res
     if not row or "".join(set(list(row))) == ",":
         raise HTTPException(
             status_code=422,
-            detail=f"Column does exist in report '{report_id}' page '{page_id}' but no rows are found (empty column)",
+            detail=f"Column does exist in report '{report_id}' but no rows are found (empty column)",
         )
     match dtype:
         case ColumnDataType.BOOLEAN:
@@ -441,7 +430,8 @@ def get_report_page_column_data_by_label(
 
 
 def _handle_string_column(
-    row: str, operation: ColumnOperation | None
+    row: str,
+    operation: ColumnOperation | None,
 ) -> list[str] | str | int:
     row_data = row.split(",")
     match operation:
@@ -454,12 +444,13 @@ def _handle_string_column(
         case _:
             raise HTTPException(
                 status_code=422,
-                detail=f"Row operation '{operation}' is impossible for row data type 'bool'",
+                detail=f"Row operation '{operation}' is impossible for row data type 'string'",
             )
 
 
 def _handle_bool_column(
-    row: str, operation: ColumnOperation | None
+    row: str,
+    operation: ColumnOperation | None,
 ) -> list[bool] | bool | int:
     row_data = list(map(bool, row.split(",")))
     match operation:
@@ -477,7 +468,8 @@ def _handle_bool_column(
 
 
 def _handle_number_column(
-    row: str, operation: ColumnOperation | None
+    row: str,
+    operation: ColumnOperation | None,
 ) -> list[float] | float | int:
     row_data = list(map(float, row.split(",")))
     if not operation:
@@ -496,10 +488,9 @@ def _handle_number_column(
             n = len(row_data)
             if n % 2 != 0:
                 return row_data[n // 2]
-            else:
-                mid_1 = row_data[(n // 2) - 1]
-                mid_2 = row_data[(n // 2)]
-                return (mid_1 + mid_2) / 2
+            mid_1 = row_data[(n // 2) - 1]
+            mid_2 = row_data[(n // 2)]
+            return (mid_1 + mid_2) / 2
         case ColumnOperation.MIN:
             return min(row_data)
         case ColumnOperation.MODE:
@@ -516,7 +507,9 @@ def prompt_gemini(
     prompt: str,
     _: SessionDep,
     model: Literal[
-        "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+        "gemini-1.5-pro",
     ] = "gemini-1.5-flash",
 ):
     res = genai.GenerativeModel(model).generate_content(prompt)
