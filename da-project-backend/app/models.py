@@ -217,8 +217,19 @@ class ColumnFields(SQLModel):
     label: str = Field(default="")
     rows: str | None = Field(default=None)
     dtype: ColumnDataType = Field(
-        default=ColumnDataType.STRING, sa_column=Col(Enum(ColumnDataType))
+        default=ColumnDataType.STRING,
+        sa_column=Col(Enum(ColumnDataType)),
     )
+
+    def to_column(self) -> "Column":
+        valid = self.model_validate(self)
+        return Column(
+            column_id=valid.column_id,
+            report_id=valid.report_id,
+            label=valid.label,
+            rows=valid.rows,
+            dtype=valid.dtype,
+        )
 
 
 class Column(ColumnFields, table=True):
@@ -228,14 +239,14 @@ class Column(ColumnFields, table=True):
 class ColumnResponse(BaseModel):
     label: str
     rows: list[str]
-    row_type: ColumnDataType
+    column_type: ColumnDataType
 
     @staticmethod
     def from_column(column: Column) -> "ColumnResponse":
         return ColumnResponse(
             label=column.label,
             rows=column.rows.split(",") if column.rows else [],
-            row_type=column.dtype,
+            column_type=column.dtype,
         )
 
     @staticmethod
@@ -243,15 +254,48 @@ class ColumnResponse(BaseModel):
         return [ColumnResponse.from_column(column) for column in columns]
 
 
+class ColumnCreate(BaseModel):
+    label: str
+    rows: list[str]
+    column_type: ColumnDataType
+
+    def validate_to_column(self, report_id: int) -> Column:
+        return ColumnFields(
+            report_id=report_id,
+            label=self.label,
+            rows=",".join(self.rows),
+            dtype=self.column_type,
+        ).to_column()
+
+    @staticmethod
+    def create_columns(
+        report_id: int,
+        labels: list[str],
+        rows: list[str],
+        dtypes: list[ColumnDataType],
+    ) -> list["Column"]:
+        columns: list[Column] = []
+        for label, rows_data, dtype in zip(labels, rows, dtypes):
+            columns.append(
+                ColumnCreate(
+                    label=label,
+                    rows=rows_data.split(","),
+                    column_type=dtype,
+                ).validate_to_column(report_id),
+            )
+        return columns
+
+
 ## COMMENT MODELS
 class CommentFields(SQLModel):
+    comment_id: int | None = Field(default=None, primary_key=True)
     comment: str = Field(default="")
     created_at: datetime = Field(
         sa_column=Col(
             TIMESTAMP(timezone=True),
             nullable=False,
             server_default=text("CURRENT_TIMESTAMP"),
-        )
+        ),
     )
     updated_at: datetime = Field(
         sa_column=Col(
@@ -259,7 +303,7 @@ class CommentFields(SQLModel):
             nullable=False,
             server_default=text("CURRENT_TIMESTAMP"),
             server_onupdate=text("CURRENT_TIMESTAMP"),
-        )
+        ),
     )
     page_id: int = Field(foreign_key="page.page_id", ondelete="CASCADE")
 
@@ -274,7 +318,6 @@ class CommentFields(SQLModel):
 
 
 class Comment(CommentFields, table=True):
-    comment_id: int | None = Field(default=None, primary_key=True)
     page: Page = Relationship(back_populates="comments")
 
 
