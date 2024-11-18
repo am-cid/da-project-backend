@@ -5,12 +5,13 @@ from typing import Annotated, List, Literal
 
 import google.generativeai as genai
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query
 from sqlmodel import col, select
 
 from .database import SessionDep, create_db_and_tables
 from .models import (
     Column,
+    ColumnCreate,
     ColumnDataType,
     ColumnResponse,
     Comment,
@@ -23,8 +24,9 @@ from .models import (
     PageUpdate,
     Report,
     ReportCreate,
-    ReportUpdate,
     ReportResponse,
+    ReportUpdate,
+    ReportWithColumnsResponse,
 )
 
 
@@ -55,14 +57,27 @@ def get_all_reports(
 
 @app.post("/api/report")
 def add_report(
-    report: ReportCreate,
+    report: Annotated[ReportCreate, File()],
     session: SessionDep,
-):
-    db_report = report.validate_to_report()
+) -> ReportWithColumnsResponse:
+    db_report, labels, rows, dtypes = ReportCreate(
+        name=report.name,
+        overview=report.overview,
+        csv_upload=report.csv_upload,
+    ).validate_to_report()
     session.add(db_report)
     session.commit()
     session.refresh(db_report)
-    return ReportResponse.from_report(db_report)
+    assert db_report.report_id is not None
+    columns = ColumnCreate.create_columns(db_report.report_id, labels, rows, dtypes)
+    for column in columns:
+        session.add(column)
+        session.commit()
+        session.refresh(column)
+    return ReportWithColumnsResponse(
+        report=ReportResponse.from_report(db_report),
+        columns=ColumnResponse.from_columns(columns),
+    )
 
 
 @app.get("/api/report/{report_id}")
@@ -71,11 +86,12 @@ def get_report(
     session: SessionDep,
 ) -> ReportResponse:
     report = session.exec(
-        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1),
     ).first()
     if not report:
         raise HTTPException(
-            status_code=404, detail=f"Report with if '{report_id}' not found"
+            status_code=404,
+            detail=f"Report with id '{report_id}' not found",
         )
     return ReportResponse.from_report(report)
 
@@ -87,11 +103,12 @@ def update_report(
     session: SessionDep,
 ):
     original = session.exec(
-        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1),
     ).first()
     if not original:
         raise HTTPException(
-            status_code=404, detail=f"Report with if '{report_id}' not found"
+            status_code=404,
+            detail=f"Report with id '{report_id}' not found",
         )
     update.apply_to(original)
     session.add(original)
@@ -106,11 +123,12 @@ def delete_report(
     session: SessionDep,
 ):
     original = session.exec(
-        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1),
     ).first()
     if not original:
         raise HTTPException(
-            status_code=404, detail=f"Report with id '{report_id}' not found"
+            status_code=404,
+            detail=f"Report with id '{report_id}' not found",
         )
     session.delete(original)
     session.commit()
@@ -125,7 +143,7 @@ def get_all_report_pages(
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> List[PageResponse]:
     pages = session.exec(
-        select(Page).where(Page.report_id == report_id).offset(offset).limit(limit)
+        select(Page).where(Page.report_id == report_id).offset(offset).limit(limit),
     ).all()
     return PageResponse.from_pages(pages)
 
@@ -154,7 +172,7 @@ def get_report_page(
         .where(Page.report_id == report_id)
         .where(Page.page_id == page_id)
         .offset(0)
-        .limit(1)
+        .limit(1),
     ).first()
     if not page:
         raise HTTPException(
@@ -175,7 +193,7 @@ def update_report_page(
         select(Page)
         .where(Page.report_id == report_id, Page.page_id == page_id)
         .offset(0)
-        .limit(1)
+        .limit(1),
     ).first()
     if not original:
         raise HTTPException(
@@ -199,7 +217,7 @@ def delete_report_page(
         select(Page)
         .where(Page.report_id == report_id, Page.page_id == page_id)
         .offset(0)
-        .limit(1)
+        .limit(1),
     ).first()
     if not original:
         raise HTTPException(
@@ -224,7 +242,7 @@ def get_all_report_page_comments(
         .join(Page)
         .where(Page.report_id == report_id, Comment.page_id == page_id)
         .offset(offset)
-        .limit(limit)
+        .limit(limit),
     ).all()
     return CommentResponse.from_comments(comments)
 
@@ -237,7 +255,7 @@ def add_report_page_comment(
     session: SessionDep,
 ) -> CommentResponse:
     exists = session.exec(
-        select(Report).where(Report.report_id == report_id).offset(0).limit(1)
+        select(Report).where(Report.report_id == report_id).offset(0).limit(1),
     ).first()
     if not exists:
         raise HTTPException(
@@ -268,7 +286,7 @@ def update_report_page_comment(
             Comment.comment_id == comment_id,
         )
         .offset(0)
-        .limit(1)
+        .limit(1),
     ).first()
     if not original:
         raise HTTPException(
@@ -298,7 +316,7 @@ def delete_report_page_comment(
             Comment.comment_id == comment_id,
         )
         .offset(0)
-        .limit(1)
+        .limit(1),
     ).first()
     if not original:
         raise HTTPException(
