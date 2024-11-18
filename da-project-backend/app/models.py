@@ -81,13 +81,36 @@ class ReportResponse(BaseModel):
 class ReportCreate(BaseModel):
     name: str
     overview: str
-    csv: str
+    csv_upload: UploadFile
+    model_config = {"extra": "forbid"}
 
-    def validate_to_report(self) -> Report:
-        return ReportFields(
-            report_overview=self.overview,
-            raw_csv=self.csv,
-        ).to_report()
+    def validate_to_report(
+        self,
+    ) -> tuple[Report, list[str], list[str], list[ColumnDataType]]:
+        """Returns:
+        - validated Report
+        - csv column labels
+        - csv column rows (as comma separated string)
+        - csv column dtype
+        """
+        cleaned_csv, labels, rows, dtypes = clean_csv(
+            self.csv_upload.file.read().decode()
+        )
+        return (
+            ReportFields(
+                report_name=self.name,
+                report_overview=self.overview,
+                clean_csv=cleaned_csv,
+            ).to_report(),
+            labels,
+            rows,
+            dtypes,
+        )
+
+
+class ReportWithColumnsResponse(BaseModel):
+    report: ReportResponse
+    columns: list["ColumnResponse"]
 
 
 class ReportUpdate(BaseModel):
@@ -101,7 +124,7 @@ class ReportUpdate(BaseModel):
         if self.overview is not None:
             original.report_overview = self.overview
         if self.csv is not None:
-            original.raw_csv = self.csv
+            original.clean_csv = self.csv
         original.model_validate(original)
 
 
