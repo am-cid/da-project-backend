@@ -14,7 +14,7 @@ from sqlmodel import (
 )
 from sqlmodel import Column as Col
 
-from .field_types import ColumnDataType, PageChartType
+from .types import ColumnDataType, PageChartType
 
 """
 MODEL STRUCTURE
@@ -94,7 +94,7 @@ class ReportCreate(BaseModel):
         - csv column dtype
         """
         cleaned_csv, labels, rows, dtypes = clean_csv(
-            self.csv_upload.file.read().decode()
+            self.csv_upload.file.read().decode(),
         )
         return (
             ReportFields(

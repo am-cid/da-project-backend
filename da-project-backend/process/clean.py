@@ -2,8 +2,7 @@ from io import StringIO
 
 import polars as pl
 import polars.datatypes as dtype
-
-from app.field_types import ColumnDataType
+from app.types import ColumnDataType
 
 BOOLEAN_TRUE_VALUES = {"true", "yes", "y", "on"}
 BOOLEAN_FALSE_VALUES = {"false", "no", "n", "off"}

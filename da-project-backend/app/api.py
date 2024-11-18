@@ -1,4 +1,3 @@
-import enum
 from collections import Counter
 from contextlib import asynccontextmanager
 from typing import Annotated, List, Literal
@@ -12,7 +11,6 @@ from .database import SessionDep, create_db_and_tables
 from .models import (
     Column,
     ColumnCreate,
-    ColumnDataType,
     ColumnResponse,
     Comment,
     CommentCreate,
@@ -28,6 +26,7 @@ from .models import (
     ReportUpdate,
     ReportWithColumnsResponse,
 )
+from .types import ColumnDataType, ColumnOperation
 
 
 @asynccontextmanager
@@ -329,7 +328,7 @@ def delete_report_page_comment(
 
 
 @app.get("/api/report/{report_id}/column")
-def get_report_page_columns(
+def get_report_columns(
     report_id: int,
     session: SessionDep,
     labels: str | None = None,
@@ -355,17 +354,6 @@ def get_report_page_columns(
     ]
 
 
-class ColumnOperation(enum.StrEnum):
-    FIRST = "first"
-    LAST = "last"
-    MAX = "max"
-    MEAN = "mean"
-    MEDIAN = "median"
-    MIN = "min"
-    MODE = "mode"
-    SUM = "sum"
-
-
 @app.get(
     "/api/report/{report_id}/column/{label}",
     description=r"""
@@ -387,7 +375,7 @@ return a 422 Unprocessable Content
 | sum | number | number |
 """,
 )
-def get_report_page_column_data_by_label(
+def get_report_column_data_by_label(
     report_id: int,
     label: str,
     session: SessionDep,
