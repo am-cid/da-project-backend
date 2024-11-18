@@ -61,9 +61,13 @@ def add_report(
 ) -> ReportWithColumnsResponse:
     db_report, labels, rows, dtypes = ReportCreate(
         name=report.name,
-        overview=report.overview,
         csv_upload=report.csv_upload,
     ).validate_to_report()
+    db_report.report_overview = prompt_gemini(
+        session,
+        prompt="Give an overview of this report",
+        context={"data": db_report.clean_csv},
+    )
     session.add(db_report)
     session.commit()
     session.refresh(db_report)
@@ -153,7 +157,25 @@ def add_report_page(
     page: PageCreate,
     session: SessionDep,
 ):
-    db_page = page.validate_to_page(report_id)
+    columns = get_report_columns(report_id, session, page.labels)
+    columns_ctx = "\n".join(
+        list(
+            map(
+                lambda x: x.model_dump_json(),
+                columns,
+            )
+        )
+    )
+    overview = prompt_gemini(
+        session,
+        prompt="Give an overview of this report page.",
+        context={
+            "page_name": page.name,
+            "columns": columns_ctx,
+            "chart_type": page.chart_type,
+        },
+    )
+    db_page = page.validate_to_page(report_id, overview)
     session.add(db_page)
     session.commit()
     session.refresh(db_page)
