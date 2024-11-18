@@ -95,13 +95,6 @@ class ReportUpdate(BaseModel):
 
 
 ## PAGE MODELS
-class PageChartType(enum.StrEnum):
-    BAR_CHART = "BAR_CHART"
-    PIE_CHART = "PIE_CHART"
-    TREND_CHART = "TREND_CHART"
-    SCATTER_PLOT = "SCATTER_PLOT"
-
-
 class PageFields(SQLModel):
     page_id: int | None = Field(default=None, primary_key=True)
     report_id: int = Field(foreign_key="report.report_id", ondelete="CASCADE")
@@ -184,12 +177,6 @@ class PageUpdate(BaseModel):
 
 
 ## COLUMN MODELS
-class ColumnDataType(enum.StrEnum):
-    BOOLEAN = "BOOLEAN"
-    NUMBER = "NUMBER"
-    STRING = "STRING"
-
-
 class ColumnFields(SQLModel):
     column_id: int | None = Field(default=None, primary_key=True)
     report_id: int = Field(foreign_key="report.report_id", ondelete="CASCADE")
