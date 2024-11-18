@@ -65,7 +65,8 @@ def add_report(
     ).validate_to_report()
     db_report.report_overview = prompt_gemini(
         session,
-        prompt="Give an overview of this report",
+        prompt="Given this data and a hypothetical report made using it, give"
+        "an overview of the report as if it is already done.",
         context={"data": db_report.clean_csv},
     )
     session.add(db_report)
@@ -168,7 +169,8 @@ def add_report_page(
     )
     overview = prompt_gemini(
         session,
-        prompt="Give an overview of this report page.",
+        prompt="Given this data and a hypothetical report page made using it, "
+        "give an overview of the report page as if it is already done.",
         context={
             "page_name": page.name,
             "columns": columns_ctx,
@@ -526,8 +528,9 @@ def prompt_gemini(
 ) -> str:
     prompt = f"""
 <system>
-Since this request comes from an API, I expect to only get the answer without acknowledgement from you.
-Keep it professional. Do not hallucinate.
+Since this request comes from an API, I expect to only get the answer without
+acknowledgement from you. Do not use unsure tone and terms such as "likely",
+"probably", etc. Keep it professional. Do not hallucinate.
 </system>
 <prompt>
 {prompt}
