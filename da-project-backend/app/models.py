@@ -80,7 +80,6 @@ class ReportResponse(BaseModel):
 
 class ReportCreate(BaseModel):
     name: str
-    overview: str
     csv_upload: UploadFile
     model_config = {"extra": "forbid"}
 
@@ -99,7 +98,6 @@ class ReportCreate(BaseModel):
         return (
             ReportFields(
                 report_name=self.name,
-                report_overview=self.overview,
                 clean_csv=cleaned_csv,
             ).to_report(),
             labels,
@@ -178,15 +176,14 @@ class PageResponse(BaseModel):
 
 class PageCreate(BaseModel):
     name: str
-    overview: str
     chart_type: PageChartType
     labels: str
 
-    def validate_to_page(self, report_id: int) -> Page:
+    def validate_to_page(self, report_id: int, overview: str) -> Page:
         return PageFields(
             report_id=report_id,
             page_name=self.name,
-            page_overview=self.overview,
+            page_overview=overview,
             chart_type=self.chart_type,
             labels=self.labels,
         ).to_page()
