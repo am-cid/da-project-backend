@@ -104,7 +104,7 @@ def update_report(
     report_id: int,
     update: ReportUpdate,
     session: SessionDep,
-):
+) -> ReportResponse:
     original = session.exec(
         select(Report).where(Report.report_id == report_id).offset(0).limit(1),
     ).first()
@@ -124,7 +124,7 @@ def update_report(
 def delete_report(
     report_id: int,
     session: SessionDep,
-):
+) -> ReportResponse:
     original = session.exec(
         select(Report).where(Report.report_id == report_id).offset(0).limit(1),
     ).first()
@@ -156,7 +156,7 @@ def add_report_page(
     report_id: int,
     page: PageCreate,
     session: SessionDep,
-):
+) -> PageResponse:
     columns = get_report_columns(report_id, session, page.labels)
     columns_ctx = "\n".join(
         list(
@@ -209,7 +209,7 @@ def update_report_page(
     page_id: int,
     update: PageUpdate,
     session: SessionDep,
-):
+) -> PageResponse:
     original = session.exec(
         select(Page)
         .where(Page.report_id == report_id, Page.page_id == page_id)
@@ -233,7 +233,7 @@ def delete_report_page(
     report_id: int,
     page_id: int,
     session: SessionDep,
-):
+) -> PageResponse:
     original = session.exec(
         select(Page)
         .where(Page.report_id == report_id, Page.page_id == page_id)
@@ -297,7 +297,7 @@ def update_report_page_comment(
     comment_id: int,
     update: CommentUpdate,
     session: SessionDep,
-):
+) -> CommentResponse:
     original = session.exec(
         select(Comment)
         .join(Page)
@@ -327,7 +327,7 @@ def delete_report_page_comment(
     page_id: int,
     comment_id: int,
     session: SessionDep,
-):
+) -> CommentResponse:
     original = session.exec(
         select(Comment)
         .join(Page)
@@ -523,7 +523,7 @@ def prompt_gemini(
         "gemini-1.5-flash-8b",
         "gemini-1.5-pro",
     ] = "gemini-1.5-flash",
-):
+) -> str:
     prompt = f"""
 <system>
 Since this request comes from an API, I expect to only get the answer without acknowledgement from you.
