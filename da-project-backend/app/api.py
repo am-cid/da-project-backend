@@ -492,13 +492,29 @@ def _handle_number_column(
 
 @app.post("/api/gemini")
 def prompt_gemini(
-    prompt: str,
     _: SessionDep,
+    *,
+    prompt: str,
+    context: dict[str, str] = {},
     model: Literal[
         "gemini-1.5-flash",
         "gemini-1.5-flash-8b",
         "gemini-1.5-pro",
     ] = "gemini-1.5-flash",
 ):
+    prompt = f"""
+<system>
+Since this request comes from an API, I expect to only get the answer without acknowledgement from you.
+Keep it professional. Do not hallucinate.
+</system>
+<prompt>
+{prompt}
+</prompt>"""
+    for tag, content in context.items():
+        prompt += f"""
+<{tag}>
+{content}
+</{tag}>
+"""
     res = genai.GenerativeModel(model).generate_content(prompt)
     return res.text
