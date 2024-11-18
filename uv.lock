@@ -114,6 +114,7 @@ dependencies = [
     { name = "google-generativeai" },
     { name = "polars" },
     { name = "python-dotenv" },
+    { name = "python-multipart" },
     { name = "ruff" },
     { name = "sqlmodel" },
 ]
@@ -124,6 +125,7 @@ requires-dist = [
     { name = "google-generativeai", specifier = ">=0.8.3" },
     { name = "polars", specifier = ">=1.12.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "python-multipart", specifier = ">=0.0.17" },
     { name = "ruff", specifier = ">=0.7.3" },
     { name = "sqlmodel", specifier = ">=0.0.22" },
 ]
