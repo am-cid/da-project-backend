@@ -1,7 +1,8 @@
-import enum
 from datetime import datetime
 from typing import List, Sequence
 
+from fastapi import UploadFile
+from process.clean import clean_csv
 from pydantic import BaseModel
 from sqlmodel import (
     TIMESTAMP,
@@ -12,6 +13,8 @@ from sqlmodel import (
     text,
 )
 from sqlmodel import Column as Col
+
+from .field_types import ColumnDataType, PageChartType
 
 """
 MODEL STRUCTURE
@@ -25,28 +28,30 @@ Table:
 TableResponse:
     response structure
 
-TableCreate: # optional (not all allows entry creation through api)
+TableCreate:
     request body structure of entry creation in table
 
 ...and other operations you might need (e.g., TableDelete, TableUpdate, etc.)
 
 NOTE:
 1. it is structured like this because Table (which will be the one created in db)
-   cannot validate fields (why sqlmodel????) so we delegate that to TableFields
+   cannot model_validate fields (why sqlmodel?) so we delegate that to TableFields
 """
 
 
 ## REPORT MODELS
 class ReportFields(SQLModel):
     report_id: int | None = Field(default=None, primary_key=True)
+    report_name: str = Field(default="")
     report_overview: str = Field(default="")
-    raw_csv: str = Field(default="")
+    clean_csv: str = Field(default="")
 
     def to_report(self) -> "Report":
         valid = self.model_validate(self)
         return Report(
+            report_name=valid.report_name,
             report_overview=valid.report_overview,
-            raw_csv=valid.raw_csv,
+            clean_csv=valid.clean_csv,
         )
 
 
@@ -57,12 +62,14 @@ class Report(ReportFields, table=True):
 
 class ReportResponse(BaseModel):
     id: int
+    name: str
     overview: str
 
     @staticmethod
     def from_report(report: Report) -> "ReportResponse":
         return ReportResponse(
             id=report.report_id if report.report_id is not None else 0,
+            name=report.report_name,
             overview=report.report_overview,
         )
 
@@ -72,6 +79,7 @@ class ReportResponse(BaseModel):
 
 
 class ReportCreate(BaseModel):
+    name: str
     overview: str
     csv: str
 
@@ -83,10 +91,13 @@ class ReportCreate(BaseModel):
 
 
 class ReportUpdate(BaseModel):
+    name: str | None = None
     overview: str | None = None
     csv: str | None = None
 
     def apply_to(self, original: Report):
+        if self.name is not None:
+            original.report_name = self.name
         if self.overview is not None:
             original.report_overview = self.overview
         if self.csv is not None:
@@ -194,7 +205,7 @@ class Column(ColumnFields, table=True):
 class ColumnResponse(BaseModel):
     label: str
     rows: list[str]
-    row_type: str
+    row_type: ColumnDataType
 
     @staticmethod
     def from_column(column: Column) -> "ColumnResponse":
