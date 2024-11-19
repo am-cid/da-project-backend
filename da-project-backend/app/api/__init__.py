@@ -25,7 +25,22 @@ async def lifespan(_: FastAPI):
     # end shutdown
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="Data Analytics Project API",
+    description=(
+        "This API provides endpoints for interacting with data reports, pages, columns, and comments. "
+        "It allows users to create, update, delete, and fetch reports, as well as manage the pages and columns "
+        "within those reports. The API also includes functionalities for interacting with comments on report pages, "
+        "and performing data analysis operations on columns in reports. Additionally, the Gemini integration allows "
+        "users to prompt a model for analysis and insights."
+    ),
+    summary=(
+        "An API for managing reports, pages, columns, and comments in a data analytics project. "
+        "It also provides data analysis operations and Gemini integration for model-based insights."
+    ),
+    version="0.1.0",
+    lifespan=lifespan,
+)
 app.include_router(report)
 app.include_router(page)
 app.include_router(column)
