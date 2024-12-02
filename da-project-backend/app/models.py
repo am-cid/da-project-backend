@@ -14,7 +14,7 @@ from sqlmodel import (
 )
 from sqlmodel import Column as Col
 
-from .types import ColumnDataType, PageChartType
+from app.types import ColumnDataType, PageChartType
 
 """
 MODEL STRUCTURE
@@ -362,3 +362,35 @@ class CommentUpdate(BaseModel):
             original.comment = self.comment
             original.updated_at = datetime.now()
         original.model_validate(original)
+
+
+"""
+************************************
+BELOW ARE MODELS THAT ARE NOT FOR DB
+************************************
+"""
+
+
+class RawCsv(BaseModel):
+    csv_upload: UploadFile
+
+    def to_clean_columns(
+        self,
+    ) -> list["CleanColumnData"]:
+        _, labels, rows, dtypes = clean_csv(
+            self.csv_upload.file.read().decode(),
+        )
+        return [
+            CleanColumnData(
+                label=label,
+                column_type=col_type,
+                rows=[data for data in row_data.split(",")],
+            )
+            for (label, row_data, col_type) in zip(labels, rows, dtypes)
+        ]
+
+
+class CleanColumnData(BaseModel):
+    label: str
+    column_type: ColumnDataType
+    rows: list[str]
