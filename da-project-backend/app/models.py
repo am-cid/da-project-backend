@@ -1,4 +1,6 @@
+import csv
 from datetime import datetime
+from io import StringIO
 from typing import List, Sequence
 
 from fastapi import UploadFile
@@ -80,7 +82,7 @@ class ReportResponse(BaseModel):
 
 class ReportCreate(BaseModel):
     name: str
-    csv_upload: UploadFile
+    clean_columns: list["CleanColumnData"]
     model_config = {"extra": "forbid"}
 
     def validate_to_report(
@@ -92,17 +94,24 @@ class ReportCreate(BaseModel):
         - csv column rows (as comma separated string)
         - csv column dtype
         """
-        cleaned_csv, labels, rows, dtypes = clean_csv(
-            self.csv_upload.file.read().decode(),
+        csv_data = []
+        labels = [col.label for col in self.clean_columns]
+        transposed_rows: zip[tuple[str]] = zip(
+            *[col.rows for col in self.clean_columns]
         )
+        csv_data.append(labels)
+        for row in transposed_rows:
+            csv_data.append(list(row))
+        out = StringIO()
+        csv.writer(out).writerows(csv_data)
         return (
             ReportFields(
                 report_name=self.name,
-                clean_csv=cleaned_csv,
+                clean_csv=out.getvalue(),
             ).to_report(),
             labels,
-            rows,
-            dtypes,
+            [",".join(col.rows) for col in self.clean_columns],
+            [col.column_type for col in self.clean_columns],
         )
 
 
