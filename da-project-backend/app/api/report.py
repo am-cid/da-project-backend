@@ -34,10 +34,7 @@ def add_report(
     report: Annotated[ReportCreate, File()],
     session: SessionDep,
 ) -> ReportWithColumnsResponse:
-    db_report, labels, rows, dtypes = ReportCreate(
-        name=report.name,
-        csv_upload=report.csv_upload,
-    ).validate_to_report()
+    db_report, labels, rows, dtypes = report.validate_to_report()
     db_report.report_overview = prompt_gemini(
         session,
         prompt="Given this data and a hypothetical report made using it, give"
