@@ -3,10 +3,11 @@ from enum import StrEnum
 
 ## MODEL TYPES
 class PageChartType(StrEnum):
-    BAR_CHART = "BAR_CHART"
-    PIE_CHART = "PIE_CHART"
-    TREND_CHART = "TREND_CHART"
     SCATTER_PLOT = "SCATTER_PLOT"
+    PIE_CHART = "PIE_CHART"
+    BUBBLE_CHART = "BUBBLE_CHART"
+    FUNNEL_CHART = "FUNNEL_CHART"
+    GEOCHART = "GEOCHART"
 
 
 class ColumnDataType(StrEnum):
