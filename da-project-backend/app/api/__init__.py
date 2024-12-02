@@ -9,6 +9,7 @@ from app.database import create_db_and_tables
 
 from .column import router as column
 from .comment import router as comment
+from .csv import router as csv
 from .gemini import router as gemini
 from .page import router as page
 from .report import router as report
@@ -56,3 +57,4 @@ app.include_router(page)
 app.include_router(column)
 app.include_router(comment)
 app.include_router(gemini)
+app.include_router(csv)
