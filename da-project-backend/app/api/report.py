@@ -1,6 +1,6 @@
 from typing import Annotated, List
 
-from fastapi import APIRouter, File, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import select
 
 from app.database import SessionDep
@@ -31,7 +31,7 @@ def get_all_reports(
 
 @router.post("/")
 def add_report(
-    report: Annotated[ReportCreate, File()],
+    report: ReportCreate,
     session: SessionDep,
 ) -> ReportWithColumnsResponse:
     db_report, labels, rows, dtypes = report.validate_to_report()
