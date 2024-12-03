@@ -17,7 +17,7 @@ def clean_csv(
     - cleaned csv rows as comma separated string
     - cleaned csv dtype
     """
-    df = pl.read_csv(StringIO(file_contents))
+    df = pl.read_csv(StringIO(file_contents)).fill_null(strategy="zero")
     labels = []
     rows = []
     dtypes: list[ColumnDataType] = []
