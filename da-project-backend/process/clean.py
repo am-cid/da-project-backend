@@ -17,7 +17,11 @@ def clean_csv(
     - cleaned csv rows as comma separated string
     - cleaned csv dtype
     """
-    df = pl.read_csv(StringIO(file_contents)).fill_null(strategy="zero")
+    df = pl.read_csv(
+        StringIO(
+            remove_comma_inside_quotes(file_contents),
+        ),
+    ).fill_null(strategy="zero")
     labels = []
     rows = []
     dtypes: list[ColumnDataType] = []
@@ -59,3 +63,19 @@ def clean_csv(
         labels.append(col.name)
         rows.append(",".join(col.cast(dtype.String).to_list()))
     return df.write_csv(), labels, rows, dtypes
+
+
+def remove_comma_inside_quotes(file_contents: str) -> str:
+    "removes commas inside either single or double quotes in a csv file"
+    quote_char: str | None = None
+    output: list[str] = []
+    for char in file_contents:
+        if char in ['"', "'"]:
+            if quote_char is None:
+                quote_char = char
+            elif quote_char == char:
+                quote_char = None
+        elif char == "," and quote_char:
+            continue
+        output.append(char)
+    return "".join(output)
