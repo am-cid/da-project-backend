@@ -26,3 +26,13 @@ class ColumnOperation(StrEnum):
     MIN = "min"
     MODE = "mode"
     SUM = "sum"
+
+
+class FillNullStrategy(StrEnum):
+    FORWARD = "forward"
+    BACKWARD = "backward"
+    MIN = "min"
+    MAX = "max"
+    MEAN = "mean"
+    ZERO = "zero"
+    ONE = "one"
