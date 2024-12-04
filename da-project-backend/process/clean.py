@@ -28,20 +28,17 @@ def clean_csv(
     rows = []
     dtypes: list[ColumnDataType] = []
     for col in df.get_columns():
+        col_name = col.name.strip()
         df = df.with_columns(
-            col.cast(dtype.String).str.to_lowercase().str.strip_chars().alias(col.name),
+            col.cast(dtype.String).str.to_lowercase().str.strip_chars().alias(col_name),
         )
         og_dtype = col.dtype
-        col = df.get_column(col.name)
+        col = df.get_column(col_name)
         match og_dtype:
             case dtype.String | dtype.Categorical | dtype.Enum | dtype.Utf8:
                 string_vals = col.to_list()
-                true_count = sum(1 for x in string_vals if x in BOOLEAN_TRUE_VALUES)
-                false_count = sum(1 for x in string_vals if x in BOOLEAN_FALSE_VALUES)
-                total_count = len(string_vals)
-                possibly_bool_column = true_count + false_count > total_count * 0.8
-                if possibly_bool_column:
-                    df = df.with_columns(col.is_in(BOOLEAN_TRUE_VALUES).alias(col.name))
+                if possibly_bool_column(string_vals):
+                    df = df.with_columns(col.is_in(BOOLEAN_TRUE_VALUES).alias(col_name))
                     dtypes.append(ColumnDataType.BOOLEAN)
                 else:
                     dtypes.append(ColumnDataType.STRING)
@@ -61,8 +58,8 @@ def clean_csv(
                 | dtype.UInt64
             ):
                 dtypes.append(ColumnDataType.NUMBER)
-        col = df.get_column(col.name)
-        labels.append(col.name)
+        col = df.get_column(col_name)
+        labels.append(col_name)
         rows.append(",".join(col.cast(dtype.String).to_list()))
     return df.write_csv(), labels, rows, dtypes
 
@@ -81,3 +78,10 @@ def remove_comma_inside_quotes(file_contents: str) -> str:
             continue
         output.append(char)
     return "".join(output)
+
+
+def possibly_bool_column(string_vals: list[str]) -> bool:
+    true_count = sum(1 for x in string_vals if x in BOOLEAN_TRUE_VALUES)
+    false_count = sum(1 for x in string_vals if x in BOOLEAN_FALSE_VALUES)
+    total_count = len(string_vals)
+    return true_count + false_count > total_count * 0.8
