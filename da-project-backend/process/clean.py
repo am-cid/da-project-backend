@@ -1,4 +1,5 @@
 from io import StringIO
+from typing import Literal
 
 import polars as pl
 import polars.datatypes as dtype
@@ -10,6 +11,7 @@ BOOLEAN_FALSE_VALUES = {"false", "no", "n", "off"}
 
 def clean_csv(
     file_contents: str,
+    strategy: Literal["forward", "backward", "min", "max", "mean", "zero", "one"],
 ) -> tuple[str, list[str], list[str], list[ColumnDataType]]:
     """Returns:
     - cleaned csv string
@@ -21,7 +23,7 @@ def clean_csv(
         StringIO(
             remove_comma_inside_quotes(file_contents),
         ),
-    ).fill_null(strategy="zero")
+    ).fill_null(strategy=strategy)
     labels = []
     rows = []
     dtypes: list[ColumnDataType] = []
