@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, File
 
@@ -12,5 +12,8 @@ router = APIRouter(prefix="/api/csv", tags=["CSV Handling"])
 def preview_clean_csv(
     raw_csv: Annotated[RawCsv, File()],
     _: SessionDep,
+    strategy: Literal[
+        "forward", "backward", "min", "max", "mean", "zero", "one"
+    ] = "zero",
 ) -> list[CleanColumnData]:
-    return raw_csv.to_clean_columns()
+    return raw_csv.to_clean_columns(strategy)

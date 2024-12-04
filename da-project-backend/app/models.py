@@ -1,7 +1,7 @@
 import csv
 from datetime import datetime
 from io import StringIO
-from typing import List, Sequence
+from typing import List, Literal, Sequence
 
 from fastapi import UploadFile
 from process.clean import clean_csv
@@ -385,9 +385,11 @@ class RawCsv(BaseModel):
 
     def to_clean_columns(
         self,
+        strategy: Literal["forward", "backward", "min", "max", "mean", "zero", "one"],
     ) -> list["CleanColumnData"]:
         _, labels, rows, dtypes = clean_csv(
             self.csv_upload.file.read().decode(),
+            strategy,
         )
         return [
             CleanColumnData(
