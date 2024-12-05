@@ -108,6 +108,8 @@ def possibly_currency_column(string_vals: list[str]) -> CurrencySymbol | None:
     "returns currency symbol if found. None if none"
     ret: CurrencySymbol | None = None
     currency_symbol: CurrencySymbol | None = None
+    found_count = 0
+    threshold = len(string_vals) * 0.8
     for val in string_vals:
         if val in [""]:
             continue
@@ -124,4 +126,6 @@ def possibly_currency_column(string_vals: list[str]) -> CurrencySymbol | None:
                 except ValueError:
                     # not a valid currency number
                     return None
-    return ret
+                found_count += 1
+                break
+    return ret if found_count > threshold else None
