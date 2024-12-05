@@ -7,7 +7,7 @@ class PageChartType(StrEnum):
     PIE_CHART = "PIE_CHART"
     BUBBLE_CHART = "BUBBLE_CHART"
     FUNNEL_CHART = "FUNNEL_CHART"
-    GEOCHART = "GEOCHART"
+    STACKED_BAR_CHART = "STACKED_BAR_CHART"
 
 
 class ColumnDataType(StrEnum):
