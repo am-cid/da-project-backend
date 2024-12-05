@@ -16,7 +16,7 @@ from sqlmodel import (
 )
 from sqlmodel import Column as Col
 
-from app.types import ColumnDataType, PageChartType
+from app.types import ColumnDataType, CurrencySymbol, PageChartType
 
 """
 MODEL STRUCTURE
@@ -87,7 +87,9 @@ class ReportCreate(BaseModel):
 
     def validate_to_report(
         self,
-    ) -> tuple[Report, list[str], list[str], list[ColumnDataType]]:
+    ) -> tuple[
+        Report, list[str], list[str], list[ColumnDataType], list[CurrencySymbol | None]
+    ]:
         """Returns:
         - validated Report
         - csv column labels
@@ -112,6 +114,7 @@ class ReportCreate(BaseModel):
             labels,
             [",".join(col.rows) for col in self.clean_columns],
             [col.column_type for col in self.clean_columns],
+            [col.currency for col in self.clean_columns],
         )
 
 
