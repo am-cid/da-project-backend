@@ -5,7 +5,7 @@ from sqlmodel import col, select
 
 from app.database import SessionDep
 from app.models import Column, ColumnResponse
-from app.types import ColumnDataType, ColumnOperation
+from app.types import ColumnDataType, ColumnOperation, CurrencySymbol
 
 router = APIRouter(prefix="/api/report/{report_id}/column", tags=["column"])
 
@@ -16,24 +16,28 @@ def get_report_columns(
     session: SessionDep,
     labels: str | None = None,
     dtype: ColumnDataType | None = None,
+    currency: CurrencySymbol | None = None,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> List[ColumnResponse]:
-    statement = select(Column.label, Column.dtype, Column.rows).where(
+    statement = select(Column.label, Column.dtype, Column.currency, Column.rows).where(
         Column.report_id == report_id,
     )
     if labels:
         statement = statement.where(col(Column.label).in_(set(labels.split(","))))
     if dtype:
         statement = statement.where(Column.dtype == dtype)
+    if currency:
+        statement = statement.where(Column.currency == currency)
     res = session.exec(statement.offset(offset).limit(limit)).all()
     return [
         ColumnResponse(
             label=label,
             column_type=ColumnDataType(row_type),
             rows=rows.split(",") if rows else [],
+            currency=CurrencySymbol.from_str(currency),
         )
-        for label, row_type, rows in res
+        for label, row_type, currency, rows in res
     ]
 
 
