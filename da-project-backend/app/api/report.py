@@ -34,7 +34,7 @@ def add_report(
     report: ReportCreate,
     session: SessionDep,
 ) -> ReportWithColumnsResponse:
-    db_report, labels, rows, dtypes = report.validate_to_report()
+    db_report, labels, rows, dtypes, currencies = report.validate_to_report()
     db_report.report_overview = prompt_gemini(
         session,
         prompt="Given this data and a hypothetical report made using it, give"
@@ -45,7 +45,9 @@ def add_report(
     session.commit()
     session.refresh(db_report)
     assert db_report.report_id is not None
-    columns = ColumnCreate.create_columns(db_report.report_id, labels, rows, dtypes)
+    columns = ColumnCreate.create_columns(
+        db_report.report_id, labels, rows, dtypes, currencies
+    )
     for column in columns:
         session.add(column)
         session.commit()
