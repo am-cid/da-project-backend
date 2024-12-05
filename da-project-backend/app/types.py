@@ -36,3 +36,16 @@ class FillNullStrategy(StrEnum):
     MEAN = "mean"
     ZERO = "zero"
     ONE = "one"
+
+
+class CurrencySymbol(StrEnum):
+    USD = "$"
+    PHP = "₱"
+    EUR = "€"
+    GBP = "£"
+    JPY = "¥"
+    INR = "₹"
+
+    @staticmethod
+    def from_str(string: str | None) -> "CurrencySymbol | None":
+        return CurrencySymbol(string) if string else None
