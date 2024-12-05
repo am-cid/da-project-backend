@@ -229,6 +229,10 @@ class ColumnFields(SQLModel):
         default=ColumnDataType.STRING,
         sa_column=Col(Enum(ColumnDataType)),
     )
+    currency: CurrencySymbol | None = Field(
+        default=None,
+        sa_column=Col(Enum(CurrencySymbol)),
+    )
 
     def to_column(self) -> "Column":
         valid = self.model_validate(self)
@@ -238,6 +242,7 @@ class ColumnFields(SQLModel):
             label=valid.label,
             rows=valid.rows,
             dtype=valid.dtype,
+            currency=valid.currency,
         )
 
 
@@ -247,15 +252,17 @@ class Column(ColumnFields, table=True):
 
 class ColumnResponse(BaseModel):
     label: str
-    rows: list[str]
     column_type: ColumnDataType
+    currency: CurrencySymbol | None
+    rows: list[str]
 
     @staticmethod
     def from_column(column: Column) -> "ColumnResponse":
         return ColumnResponse(
             label=column.label,
-            rows=column.rows.split(",") if column.rows else [],
             column_type=column.dtype,
+            currency=column.currency,
+            rows=column.rows.split(",") if column.rows else [],
         )
 
     @staticmethod
@@ -265,13 +272,15 @@ class ColumnResponse(BaseModel):
 
 class ColumnCreate(BaseModel):
     label: str
-    rows: list[str]
     column_type: ColumnDataType
+    currency: CurrencySymbol | None
+    rows: list[str]
 
     def validate_to_column(self, report_id: int) -> Column:
         return ColumnFields(
             report_id=report_id,
             label=self.label,
+            currency=self.currency,
             rows=",".join(self.rows),
             dtype=self.column_type,
         ).to_column()
@@ -282,17 +291,19 @@ class ColumnCreate(BaseModel):
         labels: list[str],
         rows: list[str],
         dtypes: list[ColumnDataType],
+        currencies: list[CurrencySymbol | None],
     ) -> list["Column"]:
-        columns: list[Column] = []
-        for label, rows_data, dtype in zip(labels, rows, dtypes):
-            columns.append(
-                ColumnCreate(
-                    label=label,
-                    rows=rows_data.split(","),
-                    column_type=dtype,
-                ).validate_to_column(report_id),
+        return [
+            ColumnCreate(
+                label=label,
+                column_type=dtype,
+                currency=currency,
+                rows=rows_data.split(","),
+            ).validate_to_column(report_id)
+            for label, rows_data, dtype, currency in zip(
+                labels, rows, dtypes, currencies
             )
-        return columns
+        ]
 
 
 ## COMMENT MODELS
@@ -390,7 +401,7 @@ class RawCsv(BaseModel):
         self,
         strategy: Literal["forward", "backward", "min", "max", "mean", "zero", "one"],
     ) -> list["CleanColumnData"]:
-        _, labels, rows, dtypes = clean_csv(
+        _, labels, rows, dtypes, currencies = clean_csv(
             self.csv_upload.file.read().decode(),
             strategy,
         )
@@ -399,12 +410,16 @@ class RawCsv(BaseModel):
                 label=label,
                 column_type=col_type,
                 rows=[data for data in row_data.split(",")],
+                currency=currency,
             )
-            for (label, row_data, col_type) in zip(labels, rows, dtypes)
+            for (label, row_data, col_type, currency) in zip(
+                labels, rows, dtypes, currencies
+            )
         ]
 
 
 class CleanColumnData(BaseModel):
     label: str
     column_type: ColumnDataType
+    currency: CurrencySymbol | None
     rows: list[str]
