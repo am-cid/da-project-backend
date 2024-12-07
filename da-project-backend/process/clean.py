@@ -7,6 +7,7 @@ from app.types import ColumnDataType, CurrencySymbol
 
 BOOLEAN_TRUE_VALUES = {"true", "yes", "y", "on"}
 BOOLEAN_FALSE_VALUES = {"false", "no", "n", "off"}
+COUNT_THRESHOLD = 0.8
 
 
 def clean_csv(
@@ -101,15 +102,15 @@ def possibly_bool_column(string_vals: list[str]) -> bool:
     true_count = sum(1 for x in string_vals if x in BOOLEAN_TRUE_VALUES)
     false_count = sum(1 for x in string_vals if x in BOOLEAN_FALSE_VALUES)
     total_count = len(string_vals)
-    return true_count + false_count > total_count * 0.8
+    return true_count + false_count > total_count * COUNT_THRESHOLD
 
 
 def possibly_currency_column(string_vals: list[str]) -> CurrencySymbol | None:
     "returns currency symbol if found. None if none"
+    threshold = len(string_vals) * COUNT_THRESHOLD
     ret: CurrencySymbol | None = None
     currency_symbol: CurrencySymbol | None = None
     found_count = 0
-    threshold = len(string_vals) * 0.8
     for val in string_vals:
         if val in [""]:
             continue
