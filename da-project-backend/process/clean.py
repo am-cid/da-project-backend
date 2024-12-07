@@ -1,13 +1,17 @@
+from collections import Counter
+from difflib import SequenceMatcher
 from io import StringIO
 from typing import Literal
 
 import polars as pl
 import polars.datatypes as dtype
 from app.types import ColumnDataType, CurrencySymbol
+from polars.series import Series
 
 BOOLEAN_TRUE_VALUES = {"true", "yes", "y", "on"}
 BOOLEAN_FALSE_VALUES = {"false", "no", "n", "off"}
 COUNT_THRESHOLD = 0.8
+SIMILARITY_THRESHOLD = 0.8
 
 
 def clean_csv(
@@ -53,6 +57,12 @@ def clean_csv(
                     dtypes.append(ColumnDataType.NUMBER)
                     currencies.append(res)
                 else:
+                    df = df.with_columns(
+                        col.map_elements(
+                            lambda val: fix_possible_misspellings(val, col),
+                            return_dtype=pl.String,
+                        )
+                    )
                     dtypes.append(ColumnDataType.STRING)
                     currencies.append(None)
             case dtype.Boolean:
@@ -130,3 +140,20 @@ def possibly_currency_column(string_vals: list[str]) -> CurrencySymbol | None:
                 found_count += 1
                 break
     return ret if found_count > threshold else None
+
+
+def fix_possible_misspellings(original: str, col: Series) -> str:
+    if (mode := col.mode().first()) is None:
+        return original
+    mode = str(mode)
+    if SequenceMatcher(None, original, mode).ratio() > SIMILARITY_THRESHOLD:
+        return mode
+
+    similar_vals: list[str] = []
+    for other in col:
+        if SequenceMatcher(None, original, other).ratio() > SIMILARITY_THRESHOLD:
+            similar_vals.append(other)
+
+    if res := Counter(similar_vals).most_common(1):
+        return res[0][0]
+    return original
