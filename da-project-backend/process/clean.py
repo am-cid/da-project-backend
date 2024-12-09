@@ -37,6 +37,39 @@ BOOLEAN_FALSE_VALUES = {
     "absent",
     "none",
 }
+GENDER_MALE_VALUES = {
+    "male",
+    "m",
+    "man",
+    "boy",
+    "gentleman",
+    "masculine",
+    "he",
+    "his",
+    "him",
+    "guy",
+    "dude",
+    "bro",
+    "sir",
+    "king",
+}
+GENDER_FEMALE_VALUES = {
+    "female",
+    "f",
+    "woman",
+    "girl",
+    "lady",
+    "feminine",
+    "she",
+    "her",
+    "hers",
+    "gal",
+    "chick",
+    "miss",
+    "madam",
+    "ma'am",
+    "queen",
+}
 COUNT_THRESHOLD = 0.8
 SIMILARITY_THRESHOLD = 0.8
 
@@ -83,6 +116,15 @@ def clean_csv(
                     )
                     dtypes.append(ColumnDataType.NUMBER)
                     currencies.append(res)
+                elif possibly_gender_column(string_vals):
+                    df = df.with_columns(
+                        col.map_elements(
+                            lambda val: normalize_gender_column(val),
+                            return_dtype=pl.String,
+                        )
+                    )
+                    dtypes.append(ColumnDataType.STRING)
+                    currencies.append(None)
                 else:
                     df = df.with_columns(
                         col.map_elements(
@@ -167,6 +209,21 @@ def possibly_currency_column(string_vals: list[str]) -> CurrencySymbol | None:
                 found_count += 1
                 break
     return ret if found_count > threshold else None
+
+
+def possibly_gender_column(string_vals: list[str]) -> bool:
+    male_count = sum(1 for x in string_vals if x in GENDER_MALE_VALUES)
+    female_count = sum(1 for x in string_vals if x in GENDER_MALE_VALUES)
+    total_count = len(string_vals)
+    return male_count + female_count > total_count * COUNT_THRESHOLD
+
+
+def normalize_gender_column(original: str) -> str:
+    if original in GENDER_MALE_VALUES:
+        return "male"
+    elif original in GENDER_FEMALE_VALUES:
+        return "female"
+    return original
 
 
 def fix_possible_misspellings(original: str, col: Series) -> str:
