@@ -8,8 +8,35 @@ import polars.datatypes as dtype
 from app.types import ColumnDataType, CurrencySymbol
 from polars.series import Series
 
-BOOLEAN_TRUE_VALUES = {"true", "yes", "y", "on"}
-BOOLEAN_FALSE_VALUES = {"false", "no", "n", "off"}
+BOOLEAN_TRUE_VALUES = {
+    "true",
+    "yes",
+    "y",
+    "on",
+    "t",
+    "yeah",
+    "yep",
+    "ye",
+    "ok",
+    "okay",
+    "affirmative",
+    "certainly",
+    "positive",
+}
+BOOLEAN_FALSE_VALUES = {
+    "false",
+    "no",
+    "n",
+    "off",
+    "f",
+    "nah",
+    "na",
+    "nop",
+    "nope",
+    "negative",
+    "absent",
+    "none",
+}
 COUNT_THRESHOLD = 0.8
 SIMILARITY_THRESHOLD = 0.8
 
