@@ -174,7 +174,8 @@ def remove_comma_inside_quotes(file_contents: str) -> str:
                 quote_char = None
         elif char == "," and quote_char:
             continue
-        output.append(char)
+        else:
+            output.append(char)
     return "".join(output)
 
 
