@@ -91,6 +91,7 @@ def clean_csv(
         StringIO(
             remove_comma_inside_quotes(file_contents),
         ),
+        null_values=["?"],
     ).fill_null(strategy=strategy)
     labels = []
     rows = []
