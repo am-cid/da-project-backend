@@ -1,4 +1,3 @@
-from collections import Counter
 from difflib import SequenceMatcher
 from io import StringIO
 from typing import Literal
@@ -235,11 +234,13 @@ def fix_possible_misspellings(original: str, col: Series) -> str:
     if SequenceMatcher(None, original, mode).ratio() > SIMILARITY_THRESHOLD:
         return mode
 
-    similar_vals: list[str] = []
-    for other in col:
-        if SequenceMatcher(None, original, other).ratio() > SIMILARITY_THRESHOLD:
-            similar_vals.append(other)
+    similar_val: str | None = None
+    current_max_count = 0
+    for row_val, row_count in col.value_counts(parallel=True).iter_rows():
+        if row_count <= current_max_count:
+            continue
+        if SequenceMatcher(None, original, row_val).ratio() > SIMILARITY_THRESHOLD:
+            similar_val = row_val
+            current_max_count = row_count
 
-    if res := Counter(similar_vals).most_common(1):
-        return res[0][0]
-    return original
+    return similar_val or original
